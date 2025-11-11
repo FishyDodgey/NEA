@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en"></html>
+<head>
+    <meta charset="UFT-8">
+    <meta name="veiwport" content="width=device-width, intial-scale=1.0 ">
+    <title>Login Screen</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body> 
+    <div class="login-container">
+    <h1>Login</h1>
+    <form action="login.php" method="POST">
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit">Login</button>
+            <button id="forgot-btn" type="button">Forgot Password?</button>
+            <button onclick="Login()">Go to Page 2</button>
+
+<script>
+function Login() {
+    window.location.href = "blank.html"; // file in same folder
+}
+</script>
+        </form>
+        </div>
+</body>
