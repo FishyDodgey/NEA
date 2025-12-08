@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page 2</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="welcome-container">
+
+        <h1>Page 2 — Table Screen</h1>
+
+        <!-- Buttons -->
+        <div class="button-row">
+            <a href="blank.html"><button>Return</button></a>
+            <button onclick="addRow()">Add Row</button>
+            <button onclick="deleteRow()">Delete Last Row</button>
+        </div>
+
+        <!-- Table -->
+        <table id="myTable" border="1" style="margin-top: 20px; width: 70%; text-align:center;">
+            <tr>
+                <th>ID</th>
+                <th>Item</th>
+            </tr>
+        </table>
+
+    </div>
+
+    <script>
+        function addRow() {
+            const table = document.getElementById("myTable");
+            const row = table.insertRow(-1);
+
+            const id =
