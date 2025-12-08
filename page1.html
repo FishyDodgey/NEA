@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page 1</title>
+    <link rel="stylesheet" href="styles.css">
+
+    <style>
+        table.inventory {
+            border-collapse: collapse;
+            width: 450px;
+        }
+        table.inventory th, table.inventory td {
+            border: 1px solid #333;
+            padding: 6px 10px;
+            text-align: left;
+        }
+        table.inventory td[contenteditable="true"] {
+            background: #f7f7f7;
+        }
+        th {
+            background: #e6e6e6;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="welcome-container">
+        <h1>Page 1</h1>
+
+        <p>Select a screen:</p>
+        <a href="screenA.html"><button>Go to Screen A</button></a>
+        <a href="screenB.html"><button>Go to Screen B</button></a>
+        <br><br>
+        <a href="blank.html"><button>Return</button></a>
+
+        <hr><br>
+
+        <h2>Metal Inventory</h2>
+
+        
+        <table id="metalTable" class="inventory">
+            <tr>
+                <th>Metal</th>
+                <th>New Sheets</th>
+                <th>Old Sheets</th>
+            </tr>
+
+            <tr>
+                <td>aluminium</td>
+                <td contenteditable="true">2</td>
+                <td contenteditable="true">1</td>
+            </tr>
+            <tr>
+                <td>brass</td>
+                <td contenteditable="true">5</td>
+                <td contenteditable="true">6</td>
+            </tr>
+            <tr>
+                <td>bronze</td>
+                <td contenteditable="true">2</td>
+                <td contenteditable="true">4</td>
+            </tr>
+            <tr>
+                <td>copper</td>
+                <td contenteditable="true">2</td>
+                <td contenteditable="true">3</td>
+            </tr>
+            <tr>
+                <td>mild steel</td>
+                <td contenteditable="true">3</td>
+                <td contenteditable="true">8</td>
+            </tr>
+            <tr>
+                <td>stainless steel</td>
+                <td contenteditable="true">7</td>
+                <td contenteditable="true">5</td>
+            </tr>
+            <tr>
+                <td>titanium</td>
+                <td contenteditable="true">1</td>
+                <td contenteditable="true">4</td>
+            </tr>
+            <tr>
+                <td>galvanised steel</td>
+                <td contenteditable="true">1</td>
+                <td contenteditable="true">2</td>
+            </tr>
+        </table>
+    </div>
+
+<script>
+// AUTO-SAVE TABLE TO LOCAL STORAGE
+function saveTable() {
+    const rows = document.querySelectorAll("#metalTable tr");
+    let data = [];
+
+    rows.forEach((row, rIndex) => {
+        if (rIndex === 0) return; // skip header
+        const cells = row.querySelectorAll("td");
+        data.push({
+            metal: cells[0].textContent.trim(),
+            newSheets: cells[1].textContent.trim(),
+            oldSheets: cells[2].textContent.trim()
+        });
+    });
+
+    localStorage.setItem("metalTableData", JSON.stringify(data));
+}
+
+// LOAD TABLE WHEN PAGE STARTS
+function loadTable() {
+    const saved = localStorage.getItem("metalTableData");
+    if (!saved) return;
+
+    const data = JSON.parse(saved);
+    const rows = document.querySelectorAll("#metalTable tr");
+
+    data.forEach((rowData, i) => {
+        const row = rows[i + 1].querySelectorAll("td");
+        row[0].textContent = rowData.metal;
+        row[1].textContent = rowData.newSheets;
+        row[2].textContent = rowData.oldSheets;
+    });
+}
+
+// Auto-save whenever the table is edited
+document.addEventListener("input", saveTable);
+
+// Load on startup
+loadTable();
+
+
+// Access helpers (if screens A/B need them)
+function getValue(row, col) {
+    return document.getElementById("metalTable")
+        .rows[row + 1].cells[col].textContent.trim();
+}
+
+function setValue(row, col, value) {
+    const cell = document.getElementById("metalTable")
+        .rows[row + 1].cells[col];
+    cell.textContent = value;
+    saveTable(); // keep saved
+}
+</script>
+
+
+</body>
+</html>
