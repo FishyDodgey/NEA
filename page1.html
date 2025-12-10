@@ -146,6 +146,97 @@ function setValue(row, col, value) {
 }
 </script>
 
+    
+<script>
+// -----------------------------
+// LOAD CSV FROM GITHUB
+// -----------------------------
+fetch("metal1.csv")
+    .then(response => response.text())
+    .then(csv => {
+        const rows = csv.trim().split("\n").map(r => r.split(","));
+        const table = document.getElementById("metal1Table");
+
+        // Remove old rows except header
+        while (table.rows.length > 1) table.deleteRow(1);
+
+        // Build table from CSV
+        rows.slice(1).forEach(r => {
+            const tr = document.createElement("tr");
+
+            tr.innerHTML = `
+                <td>${r[0]}</td>
+                <td contenteditable="true">${r[1]}</td>
+                <td contenteditable="true">${r[2]}</td>
+            `;
+
+            table.appendChild(tr);
+        });
+
+        // Load saved values (if any)
+        loadSavedTable();
+    });
+
+// -----------------------------
+// AUTO-SAVE TO LOCAL STORAGE
+// -----------------------------
+function saveTable() {
+    let data = [];
+    const rows = document.querySelectorAll("#metal1Table tr");
+
+    rows.forEach((row, index) => {
+        if (index === 0) return; // header
+        const cells = row.querySelectorAll("td");
+        data.push([
+            cells[0].textContent.trim(),
+            cells[1].textContent.trim(),
+            cells[2].textContent.trim()
+        ]);
+    });
+
+    localStorage.setItem("metal1TableStorage", JSON.stringify(data));
+}
+
+function loadSavedTable() {
+    const saved = localStorage.getItem("metal1TableStorage");
+    if (!saved) return;
+
+    const data = JSON.parse(saved);
+    const table = document.getElementById("metal1Table");
+
+    // Remove old rows except header
+    while (table.rows.length > 1) table.deleteRow(1);
+
+    data.forEach(r => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${r[0]}</td>
+            <td contenteditable="true">${r[1]}</td>
+            <td contenteditable="true">${r[2]}</td>
+        `;
+        table.appendChild(tr);
+    });
+}
+
+// Save whenever anything changes
+document.addEventListener("input", saveTable);
+
+// -----------------------------
+// OPTIONAL ACCESS FUNCTIONS
+// -----------------------------
+function getValue(row, col) {
+    return document.getElementById("metal1Table")
+        .rows[row + 1].cells[col].textContent.trim();
+}
+
+function setValue(row, col, value) {
+    const cell = document.getElementById("metal1Table")
+        .rows[row + 1].cells[col];
+    cell.textContent = value;
+    saveTable();
+}
+</script>
+
 
 </body>
 </html>
