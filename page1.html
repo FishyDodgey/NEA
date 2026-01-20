@@ -46,9 +46,7 @@
     </tr>
 </table>
 <script>
-// -----------------------------
 // LOAD CSV FROM GITHUB
-// -----------------------------
 fetch("Metal1.csv")
     .then(response => response.text())
     .then(csv => {
@@ -72,10 +70,7 @@ fetch("Metal1.csv")
         // Load saved values after CSV loads
         loadSavedTable();
     });
-
-// -----------------------------
 // AUTO-SAVE LOCAL STORAGE
-// -----------------------------
 function saveTable() {
     const rows = document.querySelectorAll("#Metal1Table tr");
     let data = [];
