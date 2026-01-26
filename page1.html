@@ -63,13 +63,19 @@
 
 <script>
 // ===============================
-// LOAD CSV FROM GITHUB
+// LOAD CSV FROM GITHUB (RAW FILE)
 // ===============================
 
-// Converts CSV data into a 2D array for easier processing
-fetch("Metal1.csv")
+// IMPORTANT:
+// This MUST be the *raw* GitHub URL, not the normal GitHub page
+// Example format:
+// https://raw.githubusercontent.com/USERNAME/REPOSITORY/main/Metal1.csv
+
+fetch("PASTE_YOUR_RAW_GITHUB_CSV_URL_HERE")
     .then(response => response.text())
     .then(csv => {
+
+        // Converts CSV text into a 2D array
         const rows = csv.trim().split("\n").map(r => r.split(","));
         const table = document.getElementById("Metal1Table");
 
@@ -87,15 +93,17 @@ fetch("Metal1.csv")
             table.appendChild(tr);
         });
 
-        // Load any previously saved edits
+        // Load any saved edits after CSV loads
         loadSavedTable();
+    })
+    .catch(error => {
+        console.error("Error loading CSV:", error);
     });
 
 // ===============================
 // VALIDATION
 // ===============================
 
-// Checks whether a value is numeric
 function isNumber(value) {
     return !isNaN(value) && value.trim() !== "";
 }
@@ -104,12 +112,11 @@ function isNumber(value) {
 // AUTO-SAVE USING LOCAL STORAGE
 // ===============================
 
-// Saves table data to localStorage whenever a change is made
 function saveTable() {
     const rows = document.querySelectorAll("#Metal1Table tr");
     let data = [];
 
-    for (let i = 1; i < rows.length; i++) { // skip header row
+    for (let i = 1; i < rows.length; i++) {
         const cells = rows[i].querySelectorAll("td");
 
         // Validate numeric input
@@ -128,7 +135,6 @@ function saveTable() {
     localStorage.setItem("Metal1TableStorage", JSON.stringify(data));
 }
 
-// Loads saved data from localStorage
 function loadSavedTable() {
     const saved = localStorage.getItem("Metal1TableStorage");
     if (!saved) return;
@@ -136,10 +142,8 @@ function loadSavedTable() {
     const data = JSON.parse(saved);
     const table = document.getElementById("Metal1Table");
 
-    // Remove rows except header
     while (table.rows.length > 1) table.deleteRow(1);
 
-    // Rebuild table using saved data
     data.forEach(r => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
@@ -151,16 +155,13 @@ function loadSavedTable() {
     });
 }
 
-// ===============================
-// EVENT HANDLING
-// ===============================
-
-// Auto-save only triggers when the table is edited
+// Auto-save only when table is edited
 document
     .getElementById("Metal1Table")
     .addEventListener("input", saveTable);
 
 </script>
+
 
 </body>
 </html>
