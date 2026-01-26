@@ -6,30 +6,37 @@
     <title>Page 1</title>
     <link rel="stylesheet" href="styles.css">
 
-   <style>
+ <style>
+    body {
+        font-family: Arial, sans-serif;
+    }
+
     table.inventory {
         border-collapse: collapse;
-        width: 70%;
-        max-width: 700px;
-        min-width: 450px;
-        margin: 0 auto; /* centre table */
+        width: 90%;
+        max-width: 600px;   /* hard limit to prevent overflow */
+        margin: 0 auto;
+        table-layout: fixed; /* forces columns to fit */
+        font-size: 14px;     /* slightly smaller text */
     }
 
     table.inventory th,
     table.inventory td {
         border: 1px solid #333;
-        padding: 10px 14px;
+        padding: 6px 8px;
         text-align: left;
+        word-wrap: break-word; /* prevent overflow */
+    }
+
+    table.inventory th {
+        background: #e6e6e6;
     }
 
     table.inventory td[contenteditable="true"] {
         background: #f7f7f7;
     }
-
-    th {
-        background: #e6e6e6;
-    }
 </style>
+
 
 </head>
 
