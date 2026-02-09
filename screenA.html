@@ -19,37 +19,75 @@
         </div>
 
         <!-- Table -->
-        <table id="myTable" border="1" style="margin-top: 20px; width: 60%; text-align:center;">
-            <tr>
-                <th>ID</th>
-                <th>Item</th>
-            </tr>
-        </table>
+        <table id="myTable" border="1" style="margin-top:20px;width:60%;text-align:center;">
+    <tr>
+        <th>Metal</th>
+        <th>New sheets</th>
+        <th>Used sheets</th>
+    </tr>
+</table>
+
     </div>
 
-    <script>
-        function addRow() {
-            let table = document.getElementById("myTable");
-            let row = table.insertRow(-1);
-            let id = row.insertCell(0);
-            let item = row.insertCell(1);
+  <script>
 
-            id.innerHTML = table.rows.length - 1;
-            item.innerHTML = "New Item";
-        }
+/* =========================
+   LOAD CSV INTO TABLE
+========================= */
 
-        function deleteRow() {
-            let table = document.getElementById("myTable");
-            if (table.rows.length > 1) table.deleteRow(-1);
-        }
+fetch("Newsheets.csv")
+  .then(response => response.text())
+  .then(csv => {
 
-        function clearTable() {
-            let table = document.getElementById("myTable");
+    const rows = csv.trim().split("\n").map(r => r.split(","));
+    const table = document.getElementById("myTable");
 
-            while (table.rows.length > 1) {
-                table.deleteRow(1);
-            }
-        }
-    </script>
+    // Remove existing rows except header
+    while (table.rows.length > 1) {
+      table.deleteRow(1);
+    }
+
+    // Skip header row
+    rows.slice(1).forEach(r => {
+      const tr = table.insertRow(-1);
+
+      tr.insertCell(0).textContent = r[0];
+      tr.insertCell(1).textContent = r[1];
+      tr.insertCell(2).textContent = r[2];
+    });
+
+  })
+  .catch(err => console.error("CSV load error:", err));
+
+
+/* =========================
+   BUTTON FUNCTIONS
+========================= */
+
+function addRow() {
+  const table = document.getElementById("myTable");
+  const row = table.insertRow(-1);
+
+  row.insertCell(0).textContent = "new metal";
+  row.insertCell(1).textContent = "0";
+  row.insertCell(2).textContent = "0";
+}
+
+function deleteRow() {
+  const table = document.getElementById("myTable");
+  if (table.rows.length > 1) {
+    table.deleteRow(-1);
+  }
+}
+
+function clearTable() {
+  const table = document.getElementById("myTable");
+  while (table.rows.length > 1) {
+    table.deleteRow(1);
+  }
+}
+
+</script>
+
 </body>
 </html>
