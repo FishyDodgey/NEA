@@ -19,46 +19,87 @@
         </div>
 
         <!-- Table -->
-        <table id="myTable" border="1" style="margin-top:20px;width:60%;text-align:center;">
+       <table id="myTable" border="1" style="margin-top:20px;width:80%;text-align:center;">
     <tr>
         <th>Metal</th>
         <th>New sheets</th>
-        <th>Used sheets</th>
+        <th>Size</th>
+        <th>Thickness</th>
+        <th>Warehouse</th>
     </tr>
 </table>
 
+
     </div>
 
-  <script>
+<script>
 
 /* =========================
-   LOAD CSV INTO TABLE
+   LOAD CSV (only first time)
 ========================= */
 
-fetch("Newsheets.csv")
-  .then(response => response.text())
-  .then(csv => {
+const STORAGE_KEY = "inventoryTableData";
 
-    const rows = csv.trim().split("\n").map(r => r.split(","));
-    const table = document.getElementById("myTable");
+function loadCSV() {
 
-    // Remove existing rows except header
-    while (table.rows.length > 1) {
-      table.deleteRow(1);
+  // If we already edited before, load saved version instead
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    buildTable(JSON.parse(saved));
+    return;
+  }
+
+  fetch("Newsheets.csv")
+    .then(response => response.text())
+    .then(csv => {
+      const rows = csv.trim().split("\n").map(r => r.split(","));
+      buildTable(rows.slice(1)); // skip header
+      saveTable(); // store initial data
+    })
+    .catch(err => console.error("CSV load error:", err));
+}
+
+/* =========================
+   BUILD TABLE
+========================= */
+
+function buildTable(data) {
+  const table = document.getElementById("myTable");
+
+  while (table.rows.length > 1) table.deleteRow(1);
+
+  data.forEach(r => {
+    const tr = table.insertRow(-1);
+
+    for (let i = 0; i < 5; i++) {
+      const td = tr.insertCell(i);
+      td.textContent = r[i] || "";
+      td.contentEditable = "true"; // makes cells editable
     }
+  });
+}
 
-    // Skip header row
-    rows.slice(1).forEach(r => {
-      const tr = table.insertRow(-1);
+/* =========================
+   SAVE TABLE (AUTO SAVE)
+========================= */
 
-      tr.insertCell(0).textContent = r[0];
-      tr.insertCell(1).textContent = r[1];
-      tr.insertCell(2).textContent = r[2];
-    });
+function saveTable() {
+  const table = document.getElementById("myTable");
+  let data = [];
 
-  })
-  .catch(err => console.error("CSV load error:", err));
+  for (let i = 1; i < table.rows.length; i++) {
+    const cells = table.rows[i].cells;
+    data.push([
+      cells[0].textContent.trim(),
+      cells[1].textContent.trim(),
+      cells[2].textContent.trim(),
+      cells[3].textContent.trim(),
+      cells[4].textContent.trim()
+    ]);
+  }
 
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
 
 /* =========================
    BUTTON FUNCTIONS
@@ -68,26 +109,47 @@ function addRow() {
   const table = document.getElementById("myTable");
   const row = table.insertRow(-1);
 
-  row.insertCell(0).textContent = "new metal";
-  row.insertCell(1).textContent = "0";
-  row.insertCell(2).textContent = "0";
+  for (let i = 0; i < 5; i++) {
+    const td = row.insertCell(i);
+    td.contentEditable = "true";
+    td.textContent = "";
+  }
+
+  saveTable();
 }
 
 function deleteRow() {
   const table = document.getElementById("myTable");
   if (table.rows.length > 1) {
     table.deleteRow(-1);
+    saveTable();
   }
 }
 
 function clearTable() {
   const table = document.getElementById("myTable");
-  while (table.rows.length > 1) {
-    table.deleteRow(1);
-  }
+  while (table.rows.length > 1) table.deleteRow(1);
+  saveTable();
 }
 
+/* =========================
+   AUTO-SAVE WHEN EDITING
+========================= */
+
+document.addEventListener("input", function(e) {
+  if (e.target.closest("#myTable")) {
+    saveTable();
+  }
+});
+
+/* =========================
+   START
+========================= */
+
+loadCSV();
+
 </script>
+
 
 </body>
 </html>
