@@ -1,0 +1,9 @@
+metal,usedSheet,size,thickness,warehouse
+aluminium,10,400x1000,2,3
+brass,2,800x1000,2,3
+bronze,6,400x800,6,4
+copper,1,600x3000,2.5,4
+galvanised steel,5,200x400,7,2
+mild steel,3,500x600,3,1
+stainless steel,5,300x100,5,2
+titanium,8,300x400,5,3
