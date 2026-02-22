@@ -82,7 +82,7 @@ async function loadCSV() {
         return;
     }
 
-    const res = await fetch("Orders.csv");
+    const res = await fetch("customersorders.csv");
     const text = await res.text();
 
     const rows = text.trim().split("\n").slice(1);
@@ -171,7 +171,7 @@ function downloadCSV() {
     const blob = new Blob([csv], {type:"text/csv"});
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "Orders.csv";
+    a.download = "customersorders.csv";
     a.click();
 }
 
