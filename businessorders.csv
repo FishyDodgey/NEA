@@ -1,0 +1,11 @@
+business,metal,price,quantity,thickness,orderID
+1,aluminium,80,700x1000,2.5,123465
+10,mild steel,130,1000x1800,5,098752
+2,stainless steal,100,600x800,3,564321
+3,galvanised steel,120,900x2000,1.5,678432
+4,copper,60,500x1000,3,901023
+5,brass,120,1000x5000,5,129038
+6,bronze,150,400x1000,2.5,223145
+7,mild steel,100,800x1500,4.5,234156
+8,stainless steal,70,400x600,2.5,234167
+9,aluminium,90,800x1200,3,543674
