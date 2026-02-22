@@ -1,36 +1,188 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Page 2</title>
-    <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Page 2</title>
+
+<style>
+body { font-family: Arial, sans-serif; background:#f4f6f8; text-align:center; }
+
+.button-row button {
+    padding:10px 15px;
+    margin:6px;
+    cursor:pointer;
+}
+
+table {
+    border-collapse: collapse;
+    width:90%;
+    margin:auto;
+    background:white;
+}
+
+th {
+    background:#e6e6e6;
+    padding:10px;
+    border:1px solid #ccc;
+}
+
+td {
+    border:1px solid #ccc;
+    padding:8px;
+}
+
+td[contenteditable="true"] {
+    background:#fffdf5;
+}
+
+tr.selected {
+    background:#c8e6c9;
+}
+</style>
 </head>
+
 <body>
-    <div class="welcome-container">
 
-        <h1>Page 2 — Table Screen</h1>
+<h1>Page 2 — Orders</h1>
 
-        <!-- Buttons -->
-        <div class="button-row">
-            <a href="blank.html"><button>Return</button></a>
-            <button onclick="addRow()">Add Row</button>
-            <button onclick="deleteRow()">Delete Last Row</button>
-        </div>
+<div class="button-row">
+    <a href="blank.html"><button>Return</button></a>
+    <button onclick="addRow()">Add Row</button>
+    <button onclick="deleteRow()">Delete Selected</button>
+    <button onclick="downloadCSV()">Download CSV</button>
+    <button onclick="resetData()">Reset</button>
+</div>
 
-        <!-- Table -->
-        <table id="myTable" border="1" style="margin-top: 20px; width: 70%; text-align:center;">
-            <tr>
-                <th>ID</th>
-                <th>Item</th>
-            </tr>
-        </table>
+<table id="ordersTable">
+<thead>
+<tr>
+<th>Customer</th>
+<th>Metal</th>
+<th>Price</th>
+<th>Quantity</th>
+<th>Thickness</th>
+<th>OrderID</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
 
-    </div>
+<script>
+let data = [];
+let selectedIndex = null;
 
-    <script>
-        function addRow() {
-            const table = document.getElementById("myTable");
-            const row = table.insertRow(-1);
+/* ---------- LOAD CSV ---------- */
+async function loadCSV() {
 
-            const id =
+    const saved = localStorage.getItem("ordersData");
+    if (saved) {
+        data = JSON.parse(saved);
+        renderTable();
+        return;
+    }
+
+    const res = await fetch("Orders.csv");
+    const text = await res.text();
+
+    const rows = text.trim().split("\n").slice(1);
+
+    data = rows.map(r => {
+        const [customer, metal, price, quantity, thickness, orderID] = r.split(",");
+        return { customer, metal, price, quantity, thickness, orderID };
+    });
+
+    saveLocal();
+    renderTable();
+}
+
+/* ---------- SAVE ---------- */
+function saveLocal() {
+    localStorage.setItem("ordersData", JSON.stringify(data));
+}
+
+/* ---------- RENDER ---------- */
+function renderTable() {
+    const tbody = document.querySelector("#ordersTable tbody");
+    tbody.innerHTML = "";
+
+    data.forEach((row, index) => {
+        const tr = document.createElement("tr");
+
+        tr.onclick = () => {
+            document.querySelectorAll("tr").forEach(r => r.classList.remove("selected"));
+            tr.classList.add("selected");
+            selectedIndex = index;
+        };
+
+        Object.keys(row).forEach(key => {
+            const td = document.createElement("td");
+            td.contentEditable = true;
+            td.innerText = row[key];
+
+            td.oninput = () => {
+                data[index][key] = td.innerText;
+                saveLocal();
+            };
+
+            tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+    });
+}
+
+/* ---------- ADD ---------- */
+function addRow() {
+    data.push({
+        customer:"New Customer",
+        metal:"metal",
+        price:"0",
+        quantity:"0x0",
+        thickness:"0",
+        orderID:Date.now()
+    });
+
+    saveLocal();
+    renderTable();
+}
+
+/* ---------- DELETE ---------- */
+function deleteRow() {
+    if (selectedIndex === null) {
+        alert("Select a row first");
+        return;
+    }
+
+    data.splice(selectedIndex,1);
+    selectedIndex = null;
+    saveLocal();
+    renderTable();
+}
+
+/* ---------- DOWNLOAD CSV ---------- */
+function downloadCSV() {
+    let csv = "customer,metal,price,quantity,thickness,orderID\n";
+
+    data.forEach(r => {
+        csv += `${r.customer},${r.metal},${r.price},${r.quantity},${r.thickness},${r.orderID}\n`;
+    });
+
+    const blob = new Blob([csv], {type:"text/csv"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "Orders.csv";
+    a.click();
+}
+
+/* ---------- RESET ---------- */
+function resetData() {
+    localStorage.removeItem("ordersData");
+    location.reload();
+}
+
+loadCSV();
+</script>
+
+</body>
+</html>
