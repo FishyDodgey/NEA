@@ -1,53 +1,150 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Screen B</title>
-    <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<title>Screen B</title>
+
+<style>
+body { font-family: Arial; text-align:center; background:#f4f6f8; }
+table { border-collapse: collapse; width:85%; margin:auto; background:white; }
+th { background:#e6e6e6; padding:10px; border:1px solid #ccc; }
+td { border:1px solid #ccc; padding:8px; }
+td[contenteditable] { background:#fffdf5; }
+tr.selected { background:#c8e6c9; }
+button { padding:10px 15px; margin:10px; cursor:pointer; }
+</style>
 </head>
+
 <body>
-    <div class="welcome-container">
-        <h1>Screen B</h1>
 
-        <div class="button-row">
-            <a href="page1.html"><button>Return</button></a>
-            <button onclick="addRow()">Add Row</button>
-            <button onclick="deleteRow()">Delete Last Row</button>
-            <button onclick="clearTable()">Clear Table</button>
-        </div>
+<h1>Screen B – Used Sheets</h1>
 
-        <table id="myTable" border="1" style="margin-top: 20px; width: 60%; text-align:center;">
-            <tr>
-                <th>ID</th>
-                <th>Value</th>
-            </tr>
-        </table>
-    </div>
+<button onclick="addRow()">Add Row</button>
+<button onclick="deleteRow()">Delete Selected</button>
+<button onclick="downloadCSV()">Download CSV</button>
+<button onclick="resetData()">Reset to Original</button>
 
-    <script>
-        function addRow() {
-            let table = document.getElementById("myTable");
-            let row = table.insertRow(-1);
-            let id = row.insertCell(0);
-            let item = row.insertCell(1);
+<table id="table">
+<thead>
+<tr>
+<th>Metal</th>
+<th>Used Sheet</th>
+<th>Size</th>
+<th>Thickness</th>
+<th>Warehouse</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
 
-            id.innerHTML = table.rows.length - 1;
-            item.innerHTML = "Entry";
-        }
+<script>
+let data = [];
+let selectedIndex = null;
 
-        function deleteRow() {
-            let table = document.getElementById("myTable");
-            if (table.rows.length > 1) table.deleteRow(-1);
-        }
+/* ---------- LOAD CSV FROM GITHUB ---------- */
+async function loadCSV() {
 
-        function clearTable() {
-            let table = document.getElementById("myTable");
+    // If user already edited before, load saved version
+    const saved = localStorage.getItem("usedSheetsData");
+    if (saved) {
+        data = JSON.parse(saved);
+        renderTable();
+        return;
+    }
 
-            while (table.rows.length > 1) {
-                table.deleteRow(1);
-            }
-        }
-    </script>
+    // Otherwise load the CSV file from repo
+    const res = await fetch("Usedsheets.csv");
+    const text = await res.text();
+
+    const rows = text.trim().split("\n").slice(1);
+    data = rows.map(r => {
+        const [metal, usedSheet, size, thickness, warehouse] = r.split(",");
+        return { metal, usedSheet, size, thickness, warehouse };
+    });
+
+    saveLocal();
+    renderTable();
+}
+
+/* ---------- SAVE TO BROWSER ---------- */
+function saveLocal() {
+    localStorage.setItem("usedSheetsData", JSON.stringify(data));
+}
+
+/* ---------- RENDER TABLE ---------- */
+function renderTable() {
+    const tbody = document.querySelector("tbody");
+    tbody.innerHTML = "";
+
+    data.forEach((row, index) => {
+        const tr = document.createElement("tr");
+
+        tr.onclick = () => {
+            document.querySelectorAll("tr").forEach(r => r.classList.remove("selected"));
+            tr.classList.add("selected");
+            selectedIndex = index;
+        };
+
+        Object.keys(row).forEach(key => {
+            const td = document.createElement("td");
+            td.contentEditable = true;
+            td.innerText = row[key];
+
+            td.oninput = () => {
+                data[index][key] = td.innerText;
+                saveLocal();
+            };
+
+            tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+    });
+}
+
+/* ---------- CREATE ---------- */
+function addRow() {
+    data.push({ metal:"new", usedSheet:"0", size:"0x0", thickness:"0", warehouse:"0" });
+    saveLocal();
+    renderTable();
+}
+
+/* ---------- DELETE ---------- */
+function deleteRow() {
+    if (selectedIndex === null) {
+        alert("Select a row first");
+        return;
+    }
+
+    data.splice(selectedIndex, 1);
+    selectedIndex = null;
+    saveLocal();
+    renderTable();
+}
+
+/* ---------- EXPORT CSV ---------- */
+function downloadCSV() {
+    let csv = "metal,usedSheet,size,thickness,warehouse\n";
+
+    data.forEach(r => {
+        csv += `${r.metal},${r.usedSheet},${r.size},${r.thickness},${r.warehouse}\n`;
+    });
+
+    const blob = new Blob([csv], { type:"text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "Usedsheets.csv";
+    a.click();
+}
+
+/* ---------- RESET ---------- */
+function resetData() {
+    localStorage.removeItem("usedSheetsData");
+    location.reload();
+}
+
+loadCSV();
+</script>
+
 </body>
 </html>
