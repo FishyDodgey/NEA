@@ -8,7 +8,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     }
 
     // In a real setup, you'd check the database to ensure the email exists.
-    // We'll simulate that here:
+    // simulate that here:
     $userExists = true;
 
     if ($userExists) {
