@@ -72,6 +72,34 @@ tr.selected {
 <script>
 let data = [];
 let selectedIndex = null;
+    async function getMetalPrices() {
+
+    const url = "https://api.metals.live/v1/spot";
+
+    try {
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        console.log(data);
+
+        // Example metals from the API
+        const gold = data.find(m => m.gold)?.gold;
+        const silver = data.find(m => m.silver)?.silver;
+        const copper = data.find(m => m.copper)?.copper;
+
+        console.log("Gold:", gold);
+        console.log("Silver:", silver);
+        console.log("Copper:", copper);
+
+    } 
+    catch (error) {
+        console.error("Error fetching metal prices:", error);
+    }
+
+}
+
+getMetalPrices();
 
 /* ---------- LOAD CSV ---------- */
 async function loadCSV() {
