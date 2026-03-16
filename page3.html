@@ -97,35 +97,21 @@ let selectedIndex = null;
     }
 
 }
-getMetalPrices();
+getMetalPrices(); 
+    /* ---------- LOAD CSV ---------- */
+    async function loadCSV() 
+    { const saved = localStorage.getItem("businessOrdersData");
+     if (saved) { data = JSON.parse(saved);
+                 renderTable();
+                 return; 
+                } 
+     const res = await fetch("businessorders.csv"); 
+     const text = await res.text(); 
+     const rows = text.trim().split("\n").slice(1); 
+     data = rows.map(r => { const [business, metal, price, quantity, thickness, orderID] = r.split(","); 
+                           return { business, metal, price, quantity, thickness, orderID }; });
 
-async function getMetalPrices() {
-
-    const url = "https://api.metals.live/v1/spot";
-
-    try {
-
-        const response = await fetch(url);
-        const metalData = await response.json();
-
-        const gold = metalData.find(m => m.gold)?.gold;
-        const silver = metalData.find(m => m.silver)?.silver;
-        const copper = metalData.find(m => m.copper)?.copper;
-
-        data.forEach(row => {
-
-            const metal = row.metal.toLowerCase();
-
-            if (metal.includes("copper")) row.price = copper;
-            if (metal.includes("gold")) row.price = gold;
-            if (metal.includes("silver")) row.price = silver;
-
-        });
-
-        renderTable();
-        saveLocal();
-
-    } 
+     
     catch (error) {
         console.error("API Error:", error);
     }
