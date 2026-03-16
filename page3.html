@@ -99,9 +99,9 @@ let selectedIndex = null;
 }
 getMetalPrices(); 
     /* ---------- LOAD CSV ---------- */
-  async function loadCSV() {
+ async function loadCSV() {
 
-    const saved = localStorage.getItem("businessOrdersData");
+    const saved = localStorage.getItem("businessorders.csv");
 
     if (saved) {
         data = JSON.parse(saved);
