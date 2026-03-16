@@ -8,37 +8,29 @@
 <style>
 body { font-family: Arial, sans-serif; background:#f4f6f8; text-align:center; }
 
-button {
-    padding:10px 15px;
-    margin:6px;
-    cursor:pointer;
-}
+button { padding:10px 15px; margin:6px; cursor:pointer; }
 
 table {
-    border-collapse: collapse;
-    width:90%;
-    margin:auto;
-    background:white;
+border-collapse: collapse;
+width:90%;
+margin:auto;
+background:white;
 }
 
 th {
-    background:#e6e6e6;
-    padding:10px;
-    border:1px solid #ccc;
+background:#e6e6e6;
+padding:10px;
+border:1px solid #ccc;
 }
 
 td {
-    border:1px solid #ccc;
-    padding:8px;
+border:1px solid #ccc;
+padding:8px;
 }
 
-td[contenteditable="true"] {
-    background:#fffdf5;
-}
+td[contenteditable="true"] { background:#fffdf5; }
 
-tr.selected {
-    background:#c8e6c9;
-}
+tr.selected { background:#c8e6c9; }
 </style>
 </head>
 
@@ -70,146 +62,173 @@ tr.selected {
 </table>
 
 <script>
+
 let data = [];
 let selectedIndex = null;
-    async function getMetalPrices() {
 
-    const url = "https://api.metals.live/v1/spot";
+/* -------- METAL API -------- */
+async function getMetalPrices(){
 
-    try {
+try{
 
-        const response = await fetch(url);
-        const metalData = await response.json();
+const res = await fetch("https://api.metals.live/v1/spot");
+const metals = await res.json();
 
-        console.log(metalData);
-
-        const gold = metalData.find(m => m.gold)?.gold;
-        const silver = metalData.find(m => m.silver)?.silver;
-        const copper = metalData.find(m => m.copper)?.copper;
-
-        console.log("Gold:", gold);
-        console.log("Silver:", silver);
-        console.log("Copper:", copper);
-
-    } 
-    catch (error) {
-        console.error("API Error:", error);
-    }
+console.log("API data:", metals);
 
 }
-getMetalPrices(); 
-    /* ---------- LOAD CSV ---------- */
- async function loadCSV() {
 
-    const saved = localStorage.getItem("businessorders.csv");
-
-    if (saved) {
-        data = JSON.parse(saved);
-        renderTable();
-        return;
-    }
-
-    const res = await fetch("businessorders.csv");
-    const text = await res.text();
-
-    const rows = text.trim().split("\n").slice(1);
-
-    data = rows.map(r => {
-        const [business, metal, price, quantity, thickness, orderID] = r.split(",");
-        return { business, metal, price, quantity, thickness, orderID };
-    });
-
-    saveLocal();
-    renderTable();
-}
+catch(err){
+console.error("API error:",err);
 }
 
-/* ---------- SAVE TO LOCAL ---------- */
-function saveLocal() {
-    localStorage.setItem("businessOrdersData", JSON.stringify(data));
 }
 
-/* ---------- RENDER TABLE ---------- */
-function renderTable() {
-    const tbody = document.querySelector("#businessTable tbody");
-    tbody.innerHTML = "";
+/* -------- LOAD CSV -------- */
+async function loadCSV(){
 
-    data.forEach((row, index) => {
-        const tr = document.createElement("tr");
+const saved = localStorage.getItem("businessOrdersData");
 
-        tr.onclick = () => {
-            document.querySelectorAll("tr").forEach(r => r.classList.remove("selected"));
-            tr.classList.add("selected");
-            selectedIndex = index;
-        };
-
-        Object.keys(row).forEach(key => {
-            const td = document.createElement("td");
-            td.contentEditable = true;
-            td.innerText = row[key];
-
-            td.oninput = () => {
-                data[index][key] = td.innerText;
-                saveLocal();
-            };
-
-            tr.appendChild(td);
-        });
-
-        tbody.appendChild(tr);
-    });
+if(saved){
+data = JSON.parse(saved);
+renderTable();
+return;
 }
 
-/* ---------- ADD ROW ---------- */
-function addRow() {
-    data.push({
-        business:"New",
-        metal:"metal",
-        price:"0",
-        quantity:"0x0",
-        thickness:"0",
-        orderID:Date.now()
-    });
+try{
 
-    saveLocal();
-    renderTable();
+const response = await fetch("businessorders.csv");
+const text = await response.text();
+
+const rows = text.trim().split("\n").slice(1);
+
+data = rows.map(row => {
+
+const [business, metal, price, quantity, thickness, orderID] = row.split(",");
+
+return {business, metal, price, quantity, thickness, orderID};
+
+});
+
+saveLocal();
+renderTable();
+
 }
 
-/* ---------- DELETE ---------- */
-function deleteRow() {
-    if (selectedIndex === null) {
-        alert("Select a row first");
-        return;
-    }
-
-    data.splice(selectedIndex,1);
-    selectedIndex = null;
-    saveLocal();
-    renderTable();
+catch(error){
+console.error("CSV load error:", error);
 }
 
-/* ---------- DOWNLOAD CSV ---------- */
-function downloadCSV() {
-    let csv = "business,metal,price,quantity,thickness,orderID\n";
-
-    data.forEach(r => {
-        csv += `${r.business},${r.metal},${r.price},${r.quantity},${r.thickness},${r.orderID}\n`;
-    });
-
-    const blob = new Blob([csv], {type:"text/csv"});
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "businessorders.csv";
-    a.click();
 }
 
-/* ---------- RESET ---------- */
-function resetData() {
-    localStorage.removeItem("businessOrdersData");
-    location.reload();
+/* -------- SAVE -------- */
+function saveLocal(){
+localStorage.setItem("businessOrdersData", JSON.stringify(data));
 }
+
+/* -------- RENDER TABLE -------- */
+function renderTable(){
+
+const tbody = document.querySelector("#businessTable tbody");
+tbody.innerHTML = "";
+
+data.forEach((row,index)=>{
+
+const tr = document.createElement("tr");
+
+tr.onclick = () => {
+document.querySelectorAll("tr").forEach(r=>r.classList.remove("selected"));
+tr.classList.add("selected");
+selectedIndex = index;
+};
+
+Object.keys(row).forEach(key => {
+
+const td = document.createElement("td");
+td.contentEditable = true;
+td.innerText = row[key];
+
+td.oninput = () => {
+data[index][key] = td.innerText;
+saveLocal();
+};
+
+tr.appendChild(td);
+
+});
+
+tbody.appendChild(tr);
+
+});
+
+}
+
+/* -------- ADD ROW -------- */
+function addRow(){
+
+data.push({
+business:"New",
+metal:"metal",
+price:"0",
+quantity:"0x0",
+thickness:"0",
+orderID:Date.now()
+});
+
+saveLocal();
+renderTable();
+
+}
+
+/* -------- DELETE -------- */
+function deleteRow(){
+
+if(selectedIndex === null){
+alert("Select a row first");
+return;
+}
+
+data.splice(selectedIndex,1);
+selectedIndex = null;
+
+saveLocal();
+renderTable();
+
+}
+
+/* -------- DOWNLOAD CSV -------- */
+function downloadCSV(){
+
+let csv = "business,metal,price,quantity,thickness,orderID\n";
+
+data.forEach(r => {
+
+csv += `${r.business},${r.metal},${r.price},${r.quantity},${r.thickness},${r.orderID}\n`;
+
+});
+
+const blob = new Blob([csv], {type:"text/csv"});
+const a = document.createElement("a");
+
+a.href = URL.createObjectURL(blob);
+a.download = "businessorders.csv";
+a.click();
+
+}
+
+/* -------- RESET -------- */
+function resetData(){
+
+localStorage.removeItem("businessOrdersData");
+location.reload();
+
+}
+
+/* -------- START PAGE -------- */
 
 loadCSV();
+getMetalPrices();
+
 </script>
 
 </body>
