@@ -2,95 +2,144 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PageT - Metal API</title>
+<title>PageT - Metal Orders</title>
 
 <style>
 body {
     font-family: Arial;
-    background:#f4f6f8;
-    text-align:center;
+    text-align: center;
+    background: #f4f6f8;
 }
 
-button {
-    padding:10px 15px;
-    margin:10px;
-    cursor:pointer;
+h1 {
+    margin-top: 20px;
+}
+
+input, select, button {
+    padding: 10px;
+    margin: 8px;
+    font-size: 14px;
 }
 
 table {
     border-collapse: collapse;
-    width:60%;
-    margin:auto;
-    background:white;
+    width: 70%;
+    margin: 20px auto;
+    background: white;
 }
 
 th {
-    background:#333;
-    color:white;
-    padding:10px;
+    background: #333;
+    color: white;
+    padding: 10px;
 }
 
 td {
-    border:1px solid #ccc;
-    padding:10px;
+    border: 1px solid #ccc;
+    padding: 10px;
 }
 </style>
 </head>
 
 <body>
 
-<h1>PageT — Live Metal Prices</h1>
+<h1>PageT — Metal Order System (API)</h1>
 
-<a href="page3.html"><button>Back</button></a>
+<a href="page3.html"><button>Back to Page 3</button></a>
 
 <br>
 
-<button onclick="loadAPI()">Load Metal Prices</button>
+<!-- INPUT SECTION -->
+<select id="metal">
+    <option value="gold">Gold</option>
+    <option value="silver">Silver</option>
+    <option value="platinum">Platinum</option>
+    <option value="palladium">Palladium</option>
+</select>
 
-<table id="apiTable">
+<input type="number" id="quantity" placeholder="Enter quantity">
+
+<button onclick="createOrder()">Create Order</button>
+
+<!-- TABLE -->
+<table>
 <thead>
 <tr>
-<th>Metal</th>
-<th>Price (USD)</th>
+    <th>Metal</th>
+    <th>Price (USD)</th>
+    <th>Quantity</th>
+    <th>Total</th>
+    <th>Order ID</th>
 </tr>
 </thead>
-<tbody></tbody>
+
+<tbody id="output"></tbody>
 </table>
 
 <script>
 
-async function loadAPI(){
+async function createOrder(){
 
-    const tbody = document.querySelector("#apiTable tbody");
-    tbody.innerHTML = "<tr><td colspan='2'>Loading...</td></tr>";
+    const metal = document.getElementById("metal").value;
+    const quantity = parseFloat(document.getElementById("quantity").value);
+
+    if(!quantity || quantity <= 0){
+        alert("Please enter a valid quantity");
+        return;
+    }
 
     try{
-        const res = await fetch("636bd01c9b6f77fcfba389cad1148a30");
-        const data = await res.json();
 
-        tbody.innerHTML = "";
+        // ✅ MetalpriceAPI request
+        const res = await fetch("https://api.metalpriceapi.com/v1/latest?api_key=636bd01c9b6f77fcfba389cad1148a30&base=USD&currencies=XAU,XAG,XPT,XPD");
+        const apiData = await res.json();
 
-        data.forEach(item => {
-            const metal = Object.keys(item)[0];
-            const price = item[metal];
+        console.log("API Data:", apiData);
 
-            const tr = document.createElement("tr");
+        const rates = apiData.rates;
 
-            tr.innerHTML = `
-                <td>${metal}</td>
-                <td>${price}</td>
-            `;
+        // map dropdown → API codes
+        const metalMap = {
+            gold: "XAU",
+            silver: "XAG",
+            platinum: "XPT",
+            palladium: "XPD"
+        };
 
-            tbody.appendChild(tr);
-        });
+        const code = metalMap[metal];
+        const price = rates[code];
+
+        if(!price){
+            alert("Metal not found in API");
+            return;
+        }
+
+        // calculate total
+        const total = (price * quantity).toFixed(2);
+
+        // random Order ID
+        const orderID = Math.floor(100000 + Math.random() * 900000);
+
+        // add to table
+        const tbody = document.getElementById("output");
+
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+            <td>${metal}</td>
+            <td>${price}</td>
+            <td>${quantity}</td>
+            <td>${total}</td>
+            <td>${orderID}</td>
+        `;
+
+        tbody.appendChild(tr);
 
     }
     catch(err){
-        tbody.innerHTML = "<tr><td colspan='2'>API Error</td></tr>";
         console.error(err);
+        alert("API failed - check console (F12)");
     }
-
 }
 
 </script>
