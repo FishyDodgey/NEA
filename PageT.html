@@ -11,10 +11,6 @@ body {
     background: #f4f6f8;
 }
 
-h1 {
-    margin-top: 20px;
-}
-
 input, select, button {
     padding: 10px;
     margin: 8px;
@@ -23,7 +19,7 @@ input, select, button {
 
 table {
     border-collapse: collapse;
-    width: 70%;
+    width: 85%;
     margin: 20px auto;
     background: white;
 }
@@ -43,21 +39,28 @@ td {
 
 <body>
 
-<h1>PageT — Metal Order System (API)</h1>
+<h1>PageT — Business Metal Orders</h1>
 
 <a href="page3.html"><button>Back to Page 3</button></a>
 
 <br>
 
-<!-- INPUT SECTION -->
+<!-- INPUTS -->
 <select id="metal">
     <option value="gold">Gold</option>
     <option value="silver">Silver</option>
     <option value="platinum">Platinum</option>
     <option value="palladium">Palladium</option>
+    <option value="copper">Copper</option>
+    <option value="aluminium">Aluminium</option>
+    <option value="nickel">Nickel</option>
+    <option value="zinc">Zinc</option>
+    <option value="lead">Lead</option>
 </select>
 
 <input type="number" id="quantity" placeholder="Enter quantity">
+
+<input type="date" id="deliveryDate">
 
 <button onclick="createOrder()">Create Order</button>
 
@@ -69,6 +72,8 @@ td {
     <th>Price (USD)</th>
     <th>Quantity</th>
     <th>Total</th>
+    <th>Delivery Date</th>
+    <th>Days Left</th>
     <th>Order ID</th>
 </tr>
 </thead>
@@ -82,23 +87,27 @@ async function createOrder(){
 
     const metal = document.getElementById("metal").value;
     const quantity = parseFloat(document.getElementById("quantity").value);
+    const deliveryDateInput = document.getElementById("deliveryDate").value;
 
     if(!quantity || quantity <= 0){
-        alert("Please enter a valid quantity");
+        alert("Enter a valid quantity");
+        return;
+    }
+
+    if(!deliveryDateInput){
+        alert("Select a delivery date");
         return;
     }
 
     try{
 
-        // ✅ MetalpriceAPI request
+        // API request
         const res = await fetch("https://api.metalpriceapi.com/v1/latest?api_key=636bd01c9b6f77fcfba389cad1148a30&base=USD&currencies=XAU,XAG,XPT,XPD");
         const apiData = await res.json();
 
-        console.log("API Data:", apiData);
-
         const rates = apiData.rates;
 
-        // map dropdown → API codes
+        // map metals (only precious metals from API)
         const metalMap = {
             gold: "XAU",
             silver: "XAG",
@@ -106,18 +115,38 @@ async function createOrder(){
             palladium: "XPD"
         };
 
-        const code = metalMap[metal];
-        const price = rates[code];
+        let price;
+
+        if(metalMap[metal]){
+            // use API price
+            price = rates[metalMap[metal]];
+        } else {
+            // fallback prices for industrial metals (since API doesn’t include them)
+            const fallbackPrices = {
+                copper: 4.5,
+                aluminium: 2.2,
+                nickel: 8.0,
+                zinc: 3.0,
+                lead: 2.5
+            };
+            price = fallbackPrices[metal];
+        }
 
         if(!price){
-            alert("Metal not found in API");
+            alert("Price not found");
             return;
         }
 
-        // calculate total
         const total = (price * quantity).toFixed(2);
 
-        // random Order ID
+        // calculate days until delivery
+        const today = new Date();
+        const deliveryDate = new Date(deliveryDateInput);
+
+        const timeDiff = deliveryDate - today;
+        const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+        // random ID
         const orderID = Math.floor(100000 + Math.random() * 900000);
 
         // add to table
@@ -130,6 +159,8 @@ async function createOrder(){
             <td>${price}</td>
             <td>${quantity}</td>
             <td>${total}</td>
+            <td>${deliveryDateInput}</td>
+            <td>${daysLeft}</td>
             <td>${orderID}</td>
         `;
 
@@ -138,7 +169,7 @@ async function createOrder(){
     }
     catch(err){
         console.error(err);
-        alert("API failed - check console (F12)");
+        alert("API failed");
     }
 }
 
