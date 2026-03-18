@@ -41,8 +41,6 @@ td {
 
 <h1>PageT — Business Metal Orders</h1>
 
-<a href="page3.html"><button>Back to Page 3</button></a>
-
 <br>
 
 <select id="metal">
@@ -57,7 +55,7 @@ td {
     <option value="lead">Lead</option>
 </select>
 
-<input type="number" id="quantity" placeholder="Enter quantity">
+<input type="number" id="quantity" placeholder="Enter quantity (kg)">
 <input type="date" id="deliveryDate">
 
 <button onclick="createOrder()">Create Order</button>
@@ -66,8 +64,8 @@ td {
 <thead>
 <tr>
     <th>Metal</th>
-    <th>Price (£)</th>
-    <th>Quantity</th>
+    <th>Price (£ per kg)</th>
+    <th>Quantity (kg)</th>
     <th>Total (£)</th>
     <th>Delivery Date</th>
     <th>Days Left</th>
@@ -87,7 +85,7 @@ async function createOrder(){
     const deliveryDateInput = document.getElementById("deliveryDate").value;
 
     if(!quantity || quantity <= 0){
-        alert("Enter a valid quantity");
+        alert("Enter a valid quantity in kg");
         return;
     }
 
@@ -98,13 +96,11 @@ async function createOrder(){
 
     try{
 
-        // API request (now also getting GBP)
         const res = await fetch("https://api.metalpriceapi.com/v1/latest?api_key=636bd01c9b6f77fcfba389cad1148a30&base=USD&currencies=GBP,XAU,XAG,XPT,XPD");
-        const apiData = await res.json();
+        const data = await res.json();
 
-        const rates = apiData.rates;
+        const rates = data.rates;
 
-        // USD → GBP rate
         const usdToGbp = rates.GBP;
 
         const metalMap = {
@@ -114,53 +110,61 @@ async function createOrder(){
             palladium: "XPD"
         };
 
-        let priceUSD;
+        let pricePerKgGBP;
 
         if(metalMap[metal]){
-            priceUSD = rates[metalMap[metal]];
+
+            // 🔑 FIX: invert rate to get USD per ounce
+            const pricePerOunceUSD = 1 / rates[metalMap[metal]];
+
+            // convert ounce → kg (1 kg = 32.1507 troy ounces)
+            const pricePerKgUSD = pricePerOunceUSD * 32.1507;
+
+            // convert USD → GBP
+            pricePerKgGBP = pricePerKgUSD * usdToGbp;
+
         } else {
-            const fallbackPrices = {
-                copper: 4.5,
-                aluminium: 2.2,
-                nickel: 8.0,
-                zinc: 3.0,
-                lead: 2.5
+
+            // fallback prices already roughly per kg (USD)
+            const fallbackPricesUSD = {
+                copper: 9000,
+                aluminium: 2200,
+                nickel: 20000,
+                zinc: 3000,
+                lead: 2500
             };
-            priceUSD = fallbackPrices[metal];
+
+            pricePerKgGBP = fallbackPricesUSD[metal] * usdToGbp;
         }
 
-        if(!priceUSD){
+        if(!pricePerKgGBP){
             alert("Price not found");
             return;
         }
 
-        // 💱 Convert to GBP
-        const priceGBP = (priceUSD * usdToGbp).toFixed(2);
-        const totalGBP = (priceGBP * quantity).toFixed(2);
+        const total = (pricePerKgGBP * quantity).toFixed(2);
+        const priceDisplay = pricePerKgGBP.toFixed(2);
 
         const today = new Date();
         const deliveryDate = new Date(deliveryDateInput);
 
-        const timeDiff = deliveryDate - today;
-        const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+        const daysLeft = Math.ceil((deliveryDate - today) / (1000 * 60 * 60 * 24));
 
         const orderID = Math.floor(100000 + Math.random() * 900000);
-
-        const tbody = document.getElementById("output");
 
         const tr = document.createElement("tr");
 
         tr.innerHTML = `
             <td>${metal}</td>
-            <td>£${priceGBP}</td>
+            <td>£${priceDisplay}</td>
             <td>${quantity}</td>
-            <td>£${totalGBP}</td>
+            <td>£${total}</td>
             <td>${deliveryDateInput}</td>
             <td>${daysLeft}</td>
             <td>${orderID}</td>
         `;
 
-        tbody.appendChild(tr);
+        document.getElementById("output").appendChild(tr);
 
     }
     catch(err){
