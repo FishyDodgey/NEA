@@ -45,7 +45,6 @@ td {
 
 <br>
 
-<!-- INPUTS -->
 <select id="metal">
     <option value="gold">Gold</option>
     <option value="silver">Silver</option>
@@ -59,19 +58,17 @@ td {
 </select>
 
 <input type="number" id="quantity" placeholder="Enter quantity">
-
 <input type="date" id="deliveryDate">
 
 <button onclick="createOrder()">Create Order</button>
 
-<!-- TABLE -->
 <table>
 <thead>
 <tr>
     <th>Metal</th>
-    <th>Price (USD)</th>
+    <th>Price (£)</th>
     <th>Quantity</th>
-    <th>Total</th>
+    <th>Total (£)</th>
     <th>Delivery Date</th>
     <th>Days Left</th>
     <th>Order ID</th>
@@ -101,13 +98,15 @@ async function createOrder(){
 
     try{
 
-        // API request
-        const res = await fetch("https://api.metalpriceapi.com/v1/latest?api_key=636bd01c9b6f77fcfba389cad1148a30&base=USD&currencies=XAU,XAG,XPT,XPD");
+        // API request (now also getting GBP)
+        const res = await fetch("https://api.metalpriceapi.com/v1/latest?api_key=636bd01c9b6f77fcfba389cad1148a30&base=USD&currencies=GBP,XAU,XAG,XPT,XPD");
         const apiData = await res.json();
 
         const rates = apiData.rates;
 
-        // map metals (only precious metals from API)
+        // USD → GBP rate
+        const usdToGbp = rates.GBP;
+
         const metalMap = {
             gold: "XAU",
             silver: "XAG",
@@ -115,13 +114,11 @@ async function createOrder(){
             palladium: "XPD"
         };
 
-        let price;
+        let priceUSD;
 
         if(metalMap[metal]){
-            // use API price
-            price = rates[metalMap[metal]];
+            priceUSD = rates[metalMap[metal]];
         } else {
-            // fallback prices for industrial metals (since API doesn’t include them)
             const fallbackPrices = {
                 copper: 4.5,
                 aluminium: 2.2,
@@ -129,36 +126,35 @@ async function createOrder(){
                 zinc: 3.0,
                 lead: 2.5
             };
-            price = fallbackPrices[metal];
+            priceUSD = fallbackPrices[metal];
         }
 
-        if(!price){
+        if(!priceUSD){
             alert("Price not found");
             return;
         }
 
-        const total = (price * quantity).toFixed(2);
+        // 💱 Convert to GBP
+        const priceGBP = (priceUSD * usdToGbp).toFixed(2);
+        const totalGBP = (priceGBP * quantity).toFixed(2);
 
-        // calculate days until delivery
         const today = new Date();
         const deliveryDate = new Date(deliveryDateInput);
 
         const timeDiff = deliveryDate - today;
         const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
 
-        // random ID
         const orderID = Math.floor(100000 + Math.random() * 900000);
 
-        // add to table
         const tbody = document.getElementById("output");
 
         const tr = document.createElement("tr");
 
         tr.innerHTML = `
             <td>${metal}</td>
-            <td>${price}</td>
+            <td>£${priceGBP}</td>
             <td>${quantity}</td>
-            <td>${total}</td>
+            <td>£${totalGBP}</td>
             <td>${deliveryDateInput}</td>
             <td>${daysLeft}</td>
             <td>${orderID}</td>
