@@ -2,38 +2,41 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AA-Sheet Metal - Batch Management</title>
+    <title>AA-Sheet Metal - Batch Management System</title>
+    <script src="https://ykhpxvsixgohtmzklray.supabase.co"></script>
     <style>
         body { font-family: 'Segoe UI', Arial; text-align: center; background: #f4f6f8; color: #333; }
         .container { width: 90%; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         input, select, button { padding: 12px; margin: 8px; border: 1px solid #ddd; border-radius: 4px; }
-        button { background: #2c3e50; color: white; cursor: pointer; font-weight: bold; }
+        button { background: #2c3e50; color: white; cursor: pointer; font-weight: bold; border: none; }
         button:hover { background: #34495e; }
-        .batch-summary { background: #e8f6f3; padding: 15px; margin-top: 20px; border-left: 5px solid #1abc9c; display: none; }
+        .batch-summary { background: #e8f6f3; padding: 15px; margin-top: 20px; border-left: 5px solid #1abc9c; display: none; text-align: left; }
         table { border-collapse: collapse; width: 100%; margin: 20px auto; }
         th { background: #2c3e50; color: white; padding: 12px; }
         td { border: 1px solid #eee; padding: 12px; }
         tr:nth-child(even) { background: #f9f9f9; }
+        .delete-btn { background: #e74c3c; padding: 5px 10px; font-size: 12px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>AA-Sheet Metal Inventory Management</h1>
-    <p>Enter individual client orders to build a batch for processing.</p>
+    <p>Database Connected: Orders are saved persistently to Supabase.</p>
 
-    <select id="metal">
-        <option value="gold">Gold</option>
-        <option value="silver">Silver</option>
-        <option value="nickel">Nickel</option>
-        <option value="copper">Copper</option>
-        <option value="aluminium">Aluminium</option>
-    </select>
-
-    <input type="number" id="quantity" placeholder="Quantity (kg)">
-    <input type="date" id="deliveryDate">
-    <button onclick="addOrderToSystem()">Add to Pending Batch</button>
-    <button onclick="processBatch()" style="background: #27ae60;">Process & Calculate Batch Savings</button>
+    <div>
+        <select id="metal">
+            <option value="gold">Gold</option>
+            <option value="silver">Silver</option>
+            <option value="nickel">Nickel</option>
+            <option value="copper">Copper</option>
+            <option value="aluminium">Aluminium</option>
+        </select>
+        <input type="number" id="quantity" placeholder="Quantity (kg)">
+        <input type="date" id="deliveryDate">
+        <button onclick="addOrderToSystem()">Add to Persistent Database</button>
+        <button onclick="processBatch()" style="background: #27ae60;">Process & Calculate Batch Savings</button>
+    </div>
 
     <div id="batchSummary" class="batch-summary"></div>
 
@@ -46,23 +49,37 @@
                 <th>Quantity (kg)</th>
                 <th>Total (£)</th>
                 <th>Delivery</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody id="output"></tbody>
     </table>
 </div>
 
-<div style="text-align: left; margin-bottom: 20px;">
-    <button onclick="window.history.back()" style="background: #95a5a6; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">
-        ← Back to Previous Page
-    </button>
+<div style="margin: 20px;">
+    <button onclick="window.history.back()" style="background: #95a5a6;">← Back to Dashboard</button>
 </div>
-    
+
 <script>
-    // Data structures for NEA evidence
+    // --- 1. INITIALIZE SUPABASE ---
+    const _supabase = supabase.createClient('https://ykhpxvsixgohtmzklray.supabase.co', 'sb_publishable_wqMj5rOwZZpscukJysZgVQ_Lgsa-eaF');
+
     let pendingOrders = []; 
     const BULK_DISCOUNT_THRESHOLD = 50; // kg
 
+    // --- 2. FETCH DATA ON LOAD (READ) ---
+    window.onload = fetchOrders;
+
+    async function fetchOrders() {
+        const { data, error } = await _supabase.from('orders').select('*');
+        if (error) console.error("Error fetching:", error);
+        else {
+            pendingOrders = data;
+            updateTable();
+        }
+    }
+
+    // --- 3. ADD ORDER (CREATE & API CONVERSION) ---
     async function addOrderToSystem() {
         const metal = document.getElementById("metal").value;
         const quantity = parseFloat(document.getElementById("quantity").value);
@@ -71,17 +88,17 @@
         if(!quantity || !deliveryDateInput) { alert("Please fill all fields"); return; }
 
         try {
-            // Your existing MetalPriceAPI logic
+            // API Call
             const res = await fetch("https://api.metalpriceapi.com/v1/latest?api_key=636bd01c9b6f77fcfba389cad1148a30&base=USD&currencies=GBP,XAU,XAG");
             const data = await res.json();
             const gbpRate = data.rates.GBP;
 
-            // Simplified price logic for demonstration
-            let basePrice = metal === "gold" ? (1/(data.rates.XAU) * 32.15 * gbpRate) : 500; 
+            // Price Logic (Handling USD to GBP conversion)
+            let basePrice = 500; // Default
+            if (metal === "gold") basePrice = (1/(data.rates.XAU) * 32.15 * gbpRate);
             if (metal === "silver") basePrice = (1/(data.rates.XAG) * 32.15 * gbpRate);
             
-            const order = {
-                id: Math.floor(1000 + Math.random() * 9000),
+            const newOrder = {
                 metal: metal,
                 price: basePrice,
                 qty: quantity,
@@ -89,9 +106,51 @@
                 delivery: deliveryDateInput
             };
 
-            pendingOrders.push(order);
-            updateTable();
-        } catch(err) { alert("API Connection Failed"); }
+            // Save to Supabase
+            const { error } = await _supabase.from('orders').insert([newOrder]);
+            if (error) throw error;
+
+            alert("Order Saved to Database!");
+            fetchOrders(); // Refresh table
+        } catch(err) { 
+            alert("Error: " + err.message); 
+        }
+    }
+
+    // --- 4. DELETE ORDER (DELETE) ---
+    async function deleteOrder(id) {
+        const { error } = await _supabase.from('orders').delete().eq('id', id);
+        if (error) alert(error.message);
+        else fetchOrders();
+    }
+
+    // --- 5. BATCHING LOGIC (ALGORITHM) ---
+    function processBatch() {
+        if(pendingOrders.length === 0) return;
+
+        let totalsByMetal = {};
+        pendingOrders.forEach(o => {
+            if(!totalsByMetal[o.metal]) totalsByMetal[o.metal] = 0;
+            totalsByMetal[o.metal] += o.qty;
+        });
+
+        let summaryHTML = "<h3>Batch Analysis Result:</h3>";
+        let totalSaved = 0;
+
+        for (let m in totalsByMetal) {
+            let qty = totalsByMetal[m];
+            if(qty >= BULK_DISCOUNT_THRESHOLD) {
+                let savings = (qty * 100); 
+                totalSaved += savings;
+                summaryHTML += `<p>✅ <strong>${m.toUpperCase()}</strong>: Total ${qty}kg meets threshold. <strong>Saved £${savings}</strong>.</p>`;
+            } else {
+                summaryHTML += `<p>❌ <strong>${m.toUpperCase()}</strong>: Total ${qty}kg. Needs ${BULK_DISCOUNT_THRESHOLD - qty}kg more for discount.</p>`;
+            }
+        }
+
+        const summaryDiv = document.getElementById("batchSummary");
+        summaryDiv.style.display = "block";
+        summaryDiv.innerHTML = summaryHTML + `<h4>Total Batch Savings: £${totalSaved.toFixed(2)}</h4>`;
     }
 
     function updateTable() {
@@ -105,38 +164,9 @@
                 <td>${o.qty}kg</td>
                 <td>£${o.total.toFixed(2)}</td>
                 <td>${o.delivery}</td>
+                <td><button class="delete-btn" onclick="deleteOrder(${o.id})">Delete</button></td>
             </tr>`;
         });
-    }
-
-    // --- BATCHING LOGIC (CORE NEA COMPLEXITY) ---
-    function processBatch() {
-        if(pendingOrders.length === 0) return;
-
-        // Grouping logic (Decomposition)
-        let totalsByMetal = {};
-        pendingOrders.forEach(o => {
-            if(!totalsByMetal[o.metal]) totalsByMetal[o.metal] = 0;
-            totalsByMetal[o.metal] += o.qty;
-        });
-
-        let summaryHTML = "<h3>Batch Analysis Result:</h3>";
-        let totalSaved = 0;
-
-        for (let m in totalsByMetal) {
-            let qty = totalsByMetal[m];
-            if(qty >= BULK_DISCOUNT_THRESHOLD) {
-                let savings = (qty * 100); // Simulating £100 saving per 50kg batch
-                totalSaved += savings;
-                summaryHTML += `<p>✅ <strong>${m.toUpperCase()}</strong>: Total ${qty}kg meets batch threshold. <strong>Saved £${savings}</strong> in shipping/bulk costs.</p>`;
-            } else {
-                summaryHTML += `<p>❌ <strong>${m.toUpperCase()}</strong>: Total ${qty}kg. Below bulk threshold (50kg).</p>`;
-            }
-        }
-
-        const summaryDiv = document.getElementById("batchSummary");
-        summaryDiv.style.display = "block";
-        summaryDiv.innerHTML = summaryHTML + `<h4>Total Batch Environmental/Cost Saving: £${totalSaved.toFixed(2)}</h4>`;
     }
 </script>
 </body>
