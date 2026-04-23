@@ -1,168 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Check Metal</title>
-    <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Check Metal</title>
 
- <style>
-    body {
-        font-family: Arial, sans-serif;
-    }
+<style>
+body {
+    font-family: Arial, sans-serif;
+}
 
-    table.inventory {
-        border-collapse: collapse;
-        width: 90%;
-        max-width: 600px;   /* hard limit to prevent overflow */
-        margin: 0 auto;
-        table-layout: fixed; /* forces columns to fit */
-        font-size: 14px;     /* slightly smaller text */
-    }
+table.inventory {
+    border-collapse: collapse;
+    width: 90%;
+    max-width: 700px;
+    margin: 0 auto;
+    table-layout: fixed;
+}
 
-    table.inventory th,
-    table.inventory td {
-        border: 1px solid #333;
-        padding: 6px 8px;
-        text-align: left;
-        word-wrap: break-word; /* prevent overflow */
-    }
+table.inventory th, table.inventory td {
+    border: 1px solid #333;
+    padding: 6px;
+    text-align: left;
+}
 
-    table.inventory th {
-        background: #e6e6e6;
-    }
+table.inventory td[contenteditable="true"] {
+    background: #f7f7f7;
+}
 
-    table.inventory td[contenteditable="true"] {
-        background: #f7f7f7;
-    }
+button {
+    margin: 5px;
+}
 </style>
 
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 </head>
 
 <body>
-    <div class="welcome-container">
-        <h1>Check Metal</h1>
 
-        <p>Select a screen:</p>
-        <a href="screenA.html"><button>New Sheets</button></a>
-        <a href="screenB.html"><button>Used Sheets</button></a>
-        <br><br>
-        <a href="blank.html"><button>Return</button></a>
+<h1 style="text-align:center;">Check Metal</h1>
 
-        <hr><br>
-    </div>
+<div style="text-align:center;">
+    <button onclick="addRow()">Add Metal</button>
+</div>
 
-    <table id="Metal1Table" class="inventory">
-        <tr>
-            <th>Metal</th>
-            <th>New Sheets</th>
-            <th>Old Sheets</th>
-        </tr>
-    </table>
+<br>
+
+<table id="Metal1Table" class="inventory">
+<tr>
+    <th>Metal</th>
+    <th>New Sheets</th>
+    <th>Old Sheets</th>
+    <th>Delete</th>
+</tr>
+</table>
 
 <script>
 // ===============================
-// LOAD CSV FROM GITHUB (RAW FILE)
+// CONNECT TO SUPABASE
 // ===============================
-
-// IMPORTANT:
-// This MUST be the *raw* GitHub URL, not the normal GitHub page
-// Example format:
-// https://raw.githubusercontent.com/USERNAME/REPOSITORY/main/Metal1.csv
-
-fetch("Metal1.csv")
-    .then(response => response.text())
-    .then(csv => {
-
-        // Converts CSV text into a 2D array
-        const rows = csv.trim().split("\n").map(r => r.split(","));
-        const table = document.getElementById("Metal1Table");
-
-        // Remove all rows except header
-        while (table.rows.length > 1) table.deleteRow(1);
-
-        // Build table rows from CSV data
-        rows.slice(1).forEach(r => {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `
-                <td>${r[0]}</td>
-                <td contenteditable="true">${r[1]}</td>
-                <td contenteditable="true">${r[2]}</td>
-            `;
-            table.appendChild(tr);
-        });
-
-        // Load any saved edits after CSV loads
-        loadSavedTable();
-    })
-    .catch(error => {
-        console.error("Error loading CSV:", error);
-    });
+const supabase = window.supabase.createClient(
+    "https://dtlkoxesvryluntpkxst.supabase.co",
+    "sb_publishable_oFej7rbKhkstLjb0Po5fHQ_oA7G-3u_"
+);
 
 // ===============================
-// VALIDATION
+// LOAD DATA (READ)
 // ===============================
+async function loadTable() {
+    const { data, error } = await supabase
+        .from("metal")
+        .select("*")
+        .order("metal");
 
-function isNumber(value) {
-    return !isNaN(value) && value.trim() !== "";
-}
-
-// ===============================
-// AUTO-SAVE USING LOCAL STORAGE
-// ===============================
-
-function saveTable() {
-    const rows = document.querySelectorAll("#Metal1Table tr");
-    let data = [];
-
-    for (let i = 1; i < rows.length; i++) {
-        const cells = rows[i].querySelectorAll("td");
-
-        // Validate numeric input
-        if (!isNumber(cells[1].textContent) || !isNumber(cells[2].textContent)) {
-            alert("Sheet values must be numeric.");
-            return;
-        }
-
-        data.push([
-            cells[0].textContent.trim(),
-            cells[1].textContent.trim(),
-            cells[2].textContent.trim()
-        ]);
+    if (error) {
+        console.error(error);
+        alert("Error loading data");
+        return;
     }
 
-    localStorage.setItem("Metal1TableStorage", JSON.stringify(data));
-}
-
-function loadSavedTable() {
-    const saved = localStorage.getItem("Metal1TableStorage");
-    if (!saved) return;
-
-    const data = JSON.parse(saved);
     const table = document.getElementById("Metal1Table");
 
     while (table.rows.length > 1) table.deleteRow(1);
 
-    data.forEach(r => {
+    data.forEach(row => {
         const tr = document.createElement("tr");
+        tr.dataset.id = row.id;
+
         tr.innerHTML = `
-            <td>${r[0]}</td>
-            <td contenteditable="true">${r[1]}</td>
-            <td contenteditable="true">${r[2]}</td>
+            <td>${row.metal}</td>
+            <td contenteditable="true" onblur="updateRow(this)">${row.new_sheets}</td>
+            <td contenteditable="true" onblur="updateRow(this)">${row.old_sheets}</td>
+            <td><button onclick="deleteRow('${row.id}')">X</button></td>
         `;
+
         table.appendChild(tr);
     });
 }
 
-// Auto-save only when table is edited
-document
-    .getElementById("Metal1Table")
-    .addEventListener("input", saveTable);
+// ===============================
+// UPDATE (ONLY ONE ROW)
+// ===============================
+async function updateRow(cell) {
+    const row = cell.parentElement;
+    const id = row.dataset.id;
+
+    const newSheets = parseInt(row.children[1].textContent);
+    const oldSheets = parseInt(row.children[2].textContent);
+
+    if (isNaN(newSheets) || isNaN(oldSheets)) {
+        alert("Enter numbers only");
+        loadTable();
+        return;
+    }
+
+    const { error } = await supabase
+        .from("metal")
+        .update({
+            new_sheets: newSheets,
+            old_sheets: oldSheets
+        })
+        .eq("id", id);
+
+    if (error) console.error(error);
+}
+
+// ===============================
+// CREATE
+// ===============================
+async function addRow() {
+    const metal = prompt("Enter metal name:");
+    if (!metal) return;
+
+    const { error } = await supabase
+        .from("metal")
+        .insert([
+            { metal: metal, new_sheets: 0, old_sheets: 0 }
+        ]);
+
+    if (error) console.error(error);
+
+    loadTable();
+}
+
+// ===============================
+// DELETE
+// ===============================
+async function deleteRow(id) {
+    if (!confirm("Delete this metal?")) return;
+
+    await supabase
+        .from("metal")
+        .delete()
+        .eq("id", id);
+
+    loadTable();
+}
+
+// ===============================
+// INITIAL LOAD
+// ===============================
+loadTable();
 
 </script>
 
-
 </body>
 </html>
-
