@@ -5,47 +5,79 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Check Metal</title>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+
 <style>
 body {
     font-family: Arial, sans-serif;
+    background-color: #1e1e1e;
+    color: white;
 }
 
+/* LEFT PANEL */
+.welcome-container {
+    position: absolute;
+    left: 20px;
+    top: 50px;
+}
+
+/* BUTTON STYLE (Screen B style) */
+button {
+    background-color: #333;
+    color: white;
+    border: 1px solid #555;
+    padding: 6px 10px;
+    margin: 4px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #555;
+}
+
+/* TABLE */
 table.inventory {
     border-collapse: collapse;
-    width: 90%;
-    max-width: 700px;
-    margin: 0 auto;
-    table-layout: fixed;
+    width: 60%;
+    margin: 50px auto;
+    background-color: #2b2b2b;
 }
 
-table.inventory th, table.inventory td {
-    border: 1px solid #333;
+table.inventory th,
+table.inventory td {
+    border: 1px solid #555;
     padding: 6px;
     text-align: left;
 }
 
-table.inventory td[contenteditable="true"] {
-    background: #f7f7f7;
+table.inventory th {
+    background-color: #3a3a3a;
 }
 
-button {
-    margin: 5px;
+td[contenteditable="true"] {
+    background-color: #444;
 }
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 </head>
 
 <body>
 
-<h1 style="text-align:center;">Check Metal</h1>
+<!-- LEFT SIDE MENU -->
+<div class="welcome-container">
+    <h1>Check Metal</h1>
 
-<div style="text-align:center;">
+    <p>Select a screen:</p>
+    <a href="screenA.html"><button>New Sheets</button></a><br>
+    <a href="screenB.html"><button>Used Sheets</button></a><br><br>
+    <a href="blank.html"><button>Return</button></a>
+
+    <hr>
+
     <button onclick="addRow()">Add Metal</button>
 </div>
 
-<br>
-
+<!-- TABLE -->
 <table id="Metal1Table" class="inventory">
 <tr>
     <th>Metal</th>
@@ -56,8 +88,9 @@ button {
 </table>
 
 <script>
+
 // ===============================
-// CONNECT TO SUPABASE
+// SUPABASE CONNECTION
 // ===============================
 const supabase = window.supabase.createClient(
     "https://dtlkoxesvryluntpkxst.supabase.co",
@@ -75,7 +108,7 @@ async function loadTable() {
 
     if (error) {
         console.error(error);
-        alert("Error loading data");
+        alert("Error loading database");
         return;
     }
 
@@ -99,7 +132,7 @@ async function loadTable() {
 }
 
 // ===============================
-// UPDATE (ONLY ONE ROW)
+// UPDATE
 // ===============================
 async function updateRow(cell) {
     const row = cell.parentElement;
@@ -109,20 +142,18 @@ async function updateRow(cell) {
     const oldSheets = parseInt(row.children[2].textContent);
 
     if (isNaN(newSheets) || isNaN(oldSheets)) {
-        alert("Enter numbers only");
+        alert("Numbers only");
         loadTable();
         return;
     }
 
-    const { error } = await supabase
+    await supabase
         .from("metal")
         .update({
             new_sheets: newSheets,
             old_sheets: oldSheets
         })
         .eq("id", id);
-
-    if (error) console.error(error);
 }
 
 // ===============================
@@ -132,13 +163,11 @@ async function addRow() {
     const metal = prompt("Enter metal name:");
     if (!metal) return;
 
-    const { error } = await supabase
+    await supabase
         .from("metal")
         .insert([
             { metal: metal, new_sheets: 0, old_sheets: 0 }
         ]);
-
-    if (error) console.error(error);
 
     loadTable();
 }
@@ -158,7 +187,7 @@ async function deleteRow(id) {
 }
 
 // ===============================
-// INITIAL LOAD
+// START
 // ===============================
 loadTable();
 
