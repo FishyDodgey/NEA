@@ -2,115 +2,135 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Check Metal - AA Sheet Metal</title>
+    <title>AA Sheet Metal - Inventory Management</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #f4f4f4; padding: 20px; }
-        .container { background: white; padding: 20px; border-radius: 8px; display: inline-block; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        table { border-collapse: collapse; width: 90%; margin: 20px auto; background: white; }
-        th, td { border: 1px solid #333; padding: 10px; text-align: left; }
-        th { background: #eee; }
-        .error-msg { color: red; font-weight: bold; margin: 10px; display: none; }
-        button { padding: 8px 12px; cursor: pointer; margin: 5px; border-radius: 4px; border: none; background: #007bff; color: white; }
-        .btn-add { background: #28a745; }
-        .btn-del { background: #dc3545; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; text-align: center; }
+        .header-box { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: inline-block; margin-bottom: 30px; border-top: 5px solid #007bff; }
+        h1 { color: #333; margin: 0 0 15px 0; }
+        table { width: 90%; max-width: 1000px; margin: 0 auto; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background: #007bff; color: white; text-transform: uppercase; font-size: 14px; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        td[contenteditable="true"] { background: #fffcf0; font-weight: bold; color: #007bff; }
+        button { padding: 10px 18px; cursor: pointer; border-radius: 6px; border: none; font-weight: bold; transition: 0.3s; margin: 5px; }
+        .btn-add { background: #28a745; color: white; }
+        .btn-del { background: #dc3545; color: white; padding: 6px 12px; }
+        .btn-nav { background: #007bff; color: white; }
+        .debug-panel { margin: 10px auto; padding: 10px; width: 90%; background: #333; color: #00ff00; font-family: monospace; text-align: left; font-size: 12px; border-radius: 5px; display: none; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>Check Metal</h1>
-        <div id="connectionStatus" class="error-msg">Database Connection Failed! Check Console (F12).</div>
-        <button class="btn-add" onclick="addRow()">+ Add New Metal</button>
-        <a href="blank.html"><button style="background:#6c757d">Return</button></a>
+    <div class="header-box">
+        <h1>Inventory Management: Check Metal</h1>
+        <p>Select Navigation:</p>
+        <a href="screenA.html"><button class="btn-nav">New Sheets</button></a>
+        <a href="screenB.html"><button class="btn-nav">Used Sheets</button></a>
+        <br><br>
+        <button class="btn-add" onclick="addRow()">+ Add Metal Row</button>
+        <a href="blank.html"><button style="background:#6c757d; color:white;">Return</button></a>
     </div>
 
-    <table id="MetalTable">
+    <div id="debug" class="debug-panel"></div>
+
+    <table id="MainTable">
         <thead>
             <tr>
-                <th>Metal Name</th>
-                <th>New Sheets</th>
-                <th>Used Sheets</th>
-                <th>Actions</th>
+                <th>Metal Material</th>
+                <th>New Stock</th>
+                <th>Used Stock</th>
+                <th>Manage</th>
             </tr>
         </thead>
         <tbody id="tableBody"></tbody>
     </table>
 
 <script>
-// --- CONFIGURATION ---
-const S_URL = "https://dtlkoxesvryluntpkxst.supabase.co"; 
-const S_KEY = "sb_publishable_oFej7rbKhkstLjb0Po5fHQ_oA7G-3u_"; 
+// --- CORE CONFIGURATION ---
+const URL = "https://dtlkoxesvryluntpkxst.supabase.co";
+const KEY = "sb_publishable_oFej7rbKhkstLjb0Po5fHQ_oA7G-3u_"; // <--- Double check there are no spaces!
 
-const myClient = window.supabase.createClient(S_URL, S_KEY);
+const _db = window.supabase.createClient(URL, KEY);
 
-async function loadTable() {
-    console.log("Attempting to fetch data...");
-    const { data, error } = await myClient.from("metal").select("*");
+function logDebug(msg) {
+    const d = document.getElementById("debug");
+    d.style.display = "block";
+    d.innerHTML += "> " + msg + "<br>";
+}
+
+async function loadData() {
+    logDebug("Connecting to Supabase...");
+    const { data, error } = await _db.from("metal").select("*");
 
     if (error) {
-        console.error("SUPABASE ERROR:", error.message);
-        document.getElementById("connectionStatus").style.display = "block";
-        document.getElementById("connectionStatus").innerText = "Error: " + error.message;
+        logDebug("ERROR: " + error.message);
         return;
     }
 
-    console.log("Data Received:", data); // THIS REVEALS THE COLUMN NAMES IN CONSOLE
+    if (data.length > 0) {
+        logDebug("Columns detected: " + Object.keys(data[0]).join(", "));
+    }
+
     const tbody = document.getElementById("tableBody");
     tbody.innerHTML = "";
 
-    data.forEach(row => {
+    data.forEach(item => {
         const tr = document.createElement("tr");
-        tr.dataset.id = row.id;
+        tr.dataset.id = item.id;
         
-        // We look for 'Metal' or 'metal', 'New sheets' or 'new_sheets', etc.
-        const name = row.Metal || row.metal || "No Name";
-        const valNew = row["New sheets"] ?? row.new_sheets ?? 0;
-        const valUsed = row["Used sheets"] ?? row.used_sheets ?? 0;
+        // Dynamic Mapping: Tries 'Metal', then 'metal', etc.
+        const name = item.Metal || item.metal || "Unknown";
+        const ns = item["New sheets"] ?? item.new_sheets ?? 0;
+        const us = item["Used sheets"] ?? item.used_sheets ?? 0;
 
         tr.innerHTML = `
             <td>${name}</td>
-            <td contenteditable="true" onblur="updateRow(this, 'New sheets')">${valNew}</td>
-            <td contenteditable="true" onblur="updateRow(this, 'Used sheets')">${valUsed}</td>
-            <td><button class="btn-del" onclick="deleteRow(${row.id})">Delete</button></td>
+            <td contenteditable="true" onblur="saveEdit(this, 'New sheets')">${ns}</td>
+            <td contenteditable="true" onblur="saveEdit(this, 'Used sheets')">${us}</td>
+            <td><button class="btn-del" onclick="removeRow(${item.id})">Delete</button></td>
         `;
         tbody.appendChild(tr);
     });
+    logDebug("Table populated successfully.");
 }
 
-async function updateRow(cell, col) {
+async function saveEdit(cell, colName) {
     const id = cell.parentElement.dataset.id;
     const val = parseInt(cell.textContent) || 0;
     
-    // Attempt update on both possible naming conventions
-    const updateObj = {};
-    updateObj[col] = val; // "New sheets"
-    updateObj[col.replace(" ", "_").toLowerCase()] = val; // "new_sheets"
+    // Attempt update on both possible naming conventions automatically
+    const payload = {};
+    payload[colName] = val; // Try with space
+    payload[colName.replace(" ", "_").toLowerCase()] = val; // Try with underscore
 
-    const { error } = await myClient.from("metal").update(updateObj).eq("id", id);
-    if (error) console.error("Update Error:", error.message);
+    const { error } = await _db.from("metal").update(payload).eq("id", id);
+    if (error) logDebug("Update Error: " + error.message);
 }
 
 async function addRow() {
-    const n = prompt("Metal Name:");
+    const n = prompt("Enter Metal Name:");
     if (!n) return;
-    const { error } = await myClient.from("metal").insert([{ 
-        "Metal": n, "metal": n, 
-        "New sheets": 0, "new_sheets": 0, 
-        "Used sheets": 0, "used_sheets": 0 
+
+    const { error } = await _db.from("metal").insert([{ 
+        "Metal": n, "metal": n,
+        "New sheets": 0, "new_sheets": 0,
+        "Used sheets": 0, "used_sheets": 0
     }]);
-    if (error) console.error("Add Error:", error.message);
-    loadTable();
+
+    if (error) logDebug("Insert Error: " + error.message);
+    loadData();
 }
 
-async function deleteRow(id) {
-    if (!confirm("Delete?")) return;
-    const { error } = await myClient.from("metal").delete().eq("id", id);
-    if (error) console.error("Delete Error:", error.message);
-    loadTable();
+async function removeRow(id) {
+    if (!confirm("Remove this record?")) return;
+    const { error } = await _db.from("metal").delete().eq("id", id);
+    if (error) logDebug("Delete Error: " + error.message);
+    loadData();
 }
 
-loadTable();
+// Start
+loadData();
 </script>
 </body>
 </html>
