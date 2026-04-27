@@ -2,135 +2,193 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AA Sheet Metal - Inventory Management</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <title>AA Sheet Metal - Inventory CRUD</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; text-align: center; }
-        .header-box { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: inline-block; margin-bottom: 30px; border-top: 5px solid #007bff; }
-        h1 { color: #333; margin: 0 0 15px 0; }
-        table { width: 90%; max-width: 1000px; margin: 0 auto; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        th { background: #007bff; color: white; text-transform: uppercase; font-size: 14px; }
-        tr:nth-child(even) { background: #f9f9f9; }
-        td[contenteditable="true"] { background: #fffcf0; font-weight: bold; color: #007bff; }
-        button { padding: 10px 18px; cursor: pointer; border-radius: 6px; border: none; font-weight: bold; transition: 0.3s; margin: 5px; }
-        .btn-add { background: #28a745; color: white; }
-        .btn-del { background: #dc3545; color: white; padding: 6px 12px; }
-        .btn-nav { background: #007bff; color: white; }
-        .debug-panel { margin: 10px auto; padding: 10px; width: 90%; background: #333; color: #00ff00; font-family: monospace; text-align: left; font-size: 12px; border-radius: 5px; display: none; }
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4; text-align: center; }
+        .container { background: white; padding: 20px; border-radius: 10px; display: inline-block; box-shadow: 0px 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        
+        table { border-collapse: collapse; width: 90%; max-width: 800px; margin: 20px auto; background: white; }
+        th, td { border: 1px solid #333; padding: 10px; text-align: left; }
+        th { background: #e6e6e6; }
+        td[contenteditable="true"] { background: #fffdf0; cursor: pointer; }
+
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; }
+        .btn-nav { background-color: #007bff; color: white; }
+        .btn-add { background-color: #28a745; color: white; }
+        .btn-del { background-color: #dc3545; color: white; }
+        
+        #status { color: #555; font-style: italic; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
-    <div class="header-box">
-        <h1>Inventory Management: Check Metal</h1>
-        <p>Select Navigation:</p>
+    <div class="container">
+        <h1>AA Sheet Metal Inventory</h1>
+        <p id="status">Waiting for connection...</p>
+        
         <a href="screenA.html"><button class="btn-nav">New Sheets</button></a>
         <a href="screenB.html"><button class="btn-nav">Used Sheets</button></a>
         <br><br>
-        <button class="btn-add" onclick="addRow()">+ Add Metal Row</button>
+        <button class="btn-add" onclick="addMetal()">+ Add New Metal</button>
         <a href="blank.html"><button style="background:#6c757d; color:white;">Return</button></a>
     </div>
 
-    <div id="debug" class="debug-panel"></div>
-
-    <table id="MainTable">
+    <table id="MetalTable">
         <thead>
             <tr>
-                <th>Metal Material</th>
-                <th>New Stock</th>
-                <th>Used Stock</th>
-                <th>Manage</th>
+                <th>Metal Name</th>
+                <th>New Sheets</th>
+                <th>Used Sheets</th>
+                <th>Actions</th>
             </tr>
         </thead>
-        <tbody id="tableBody"></tbody>
+        <tbody id="tableBody">
+            </tbody>
     </table>
 
 <script>
-// --- CORE CONFIGURATION ---
-const URL = "https://dtlkoxesvryluntpkxst.supabase.co";
-const KEY = "sb_publishable_oFej7rbKhkstLjb0Po5fHQ_oA7G-3u_"; // <--- Double check there are no spaces!
+    // ==============================
+    // SUPABASE SETTINGS (Update these!)
+    // ==============================
+    const supabaseUrl = 'https://dtlkoxesvryluntpkxst.supabase.co';
+    const supabaseKey = 'PASTE_YOUR_ANON_KEY_HERE';
 
-const _db = window.supabase.createClient(URL, KEY);
+    const statusText = document.getElementById('status');
 
-function logDebug(msg) {
-    const d = document.getElementById("debug");
-    d.style.display = "block";
-    d.innerHTML += "> " + msg + "<br>";
-}
-
-async function loadData() {
-    logDebug("Connecting to Supabase...");
-    const { data, error } = await _db.from("Metal").select("*");
-
-    if (error) {
-        logDebug("ERROR: " + error.message);
-        return;
-    }
-
-    if (data.length > 0) {
-        logDebug("Columns detected: " + Object.keys(data[0]).join(", "));
-    }
-
-    const tbody = document.getElementById("tableBody");
-    tbody.innerHTML = "";
-
-    data.forEach(item => {
-        const tr = document.createElement("tr");
-        tr.dataset.id = item.id;
+    // ==============================
+    // 1. READ (Load Table)
+    // ==============================
+    async function loadTable() {
+        statusText.textContent = 'Loading data...';
         
-        // Dynamic Mapping: Tries 'Metal', then 'metal', etc.
-        const name = item.Metal || item.metal || "Unknown";
-        const ns = item["New sheets"] ?? item.new_sheets ?? 0;
-        const us = item["Used sheets"] ?? item.used_sheets ?? 0;
+        const response = await fetch(`${supabaseUrl}/rest/v1/Metal?select=*&order=id.asc`, {
+            method: 'GET',
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
+                Accept: 'application/json'
+            }
+        });
 
-        tr.innerHTML = `
-            <td>${name}</td>
-            <td contenteditable="true" onblur="saveEdit(this, 'New sheets')">${ns}</td>
-            <td contenteditable="true" onblur="saveEdit(this, 'Used sheets')">${us}</td>
-            <td><button class="btn-del" onclick="removeRow(${item.id})">Delete</button></td>
-        `;
-        tbody.appendChild(tr);
-    });
-    logDebug("Table populated successfully.");
-}
+        const data = await response.json();
 
-async function saveEdit(cell, colName) {
-    const id = cell.parentElement.dataset.id;
-    const val = parseInt(cell.textContent) || 0;
-    
-    // Attempt update on both possible naming conventions automatically
-    const payload = {};
-    payload[colName] = val; // Try with space
-    payload[colName.replace(" ", "_").toLowerCase()] = val; // Try with underscore
+        if (response.ok) {
+            statusText.textContent = 'Connected successfully.';
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
 
-    const { error } = await _db.from("Metal").update(payload).eq("id", id);
-    if (error) logDebug("Update Error: " + error.message);
-}
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.dataset.id = row.id;
+                tr.innerHTML = `
+                    <td>${row.Metal}</td>
+                    <td contenteditable="true" onblur="updateMetal(this, 'New sheets')">${row["New sheets"]}</td>
+                    <td contenteditable="true" onblur="updateMetal(this, 'Used sheets')">${row["Used sheets"]}</td>
+                    <td><button class="btn-del" onclick="deleteMetal(${row.id})">Delete</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } else {
+            statusText.textContent = 'Error: ' + data.message;
+        }
+    }
 
-async function addRow() {
-    const n = prompt("Enter Metal Name:");
-    if (!n) return;
+    // ==============================
+    // 2. CREATE (Add Row)
+    // ==============================
+    async function addMetal() {
+        const name = prompt("Enter Metal Name:");
+        if (!name) return;
 
-    const { error } = await _db.from("Metal").insert([{ 
-        "Metal": n, "Metal": n,
-        "New sheets": 0, "new_sheets": 0,
-        "Used sheets": 0, "used_sheets": 0
-    }]);
+        statusText.textContent = 'Adding row...';
 
-    if (error) logDebug("Insert Error: " + error.message);
-    loadData();
-}
+        const newRow = {
+            "Metal": name,
+            "New sheets": 0,
+            "Used sheets": 0
+        };
 
-async function removeRow(id) {
-    if (!confirm("Remove this record?")) return;
-    const { error } = await _db.from("Metal").delete().eq("id", id);
-    if (error) logDebug("Delete Error: " + error.message);
-    loadData();
-}
+        const response = await fetch(`${supabaseUrl}/rest/v1/Metal`, {
+            method: 'POST',
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
+                'Content-Type': 'application/json',
+                Prefer: 'return=representation'
+            },
+            body: JSON.stringify(newRow)
+        });
 
-// Start
-loadData();
+        if (response.ok) {
+            loadTable();
+        } else {
+            const err = await response.json();
+            alert("Add failed: " + err.message);
+        }
+    }
+
+    // ==============================
+    // 3. UPDATE (Edit Cell)
+    // ==============================
+    async function updateMetal(cell, columnName) {
+        const id = cell.parentElement.dataset.id;
+        const newValue = parseInt(cell.textContent.trim());
+
+        if (isNaN(newValue)) {
+            alert("Please enter a number");
+            loadTable();
+            return;
+        }
+
+        statusText.textContent = 'Updating...';
+
+        const updatedData = {};
+        updatedData[columnName] = newValue;
+
+        const response = await fetch(`${supabaseUrl}/rest/v1/Metal?id=eq.${id}`, {
+            method: 'PATCH',
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updatedData)
+        });
+
+        if (response.ok) {
+            statusText.textContent = 'Update saved.';
+        } else {
+            alert("Update failed.");
+            loadTable();
+        }
+    }
+
+    // ==============================
+    // 4. DELETE (Remove Row)
+    // ==============================
+    async function deleteMetal(id) {
+        if (!confirm("Delete this metal record?")) return;
+
+        statusText.textContent = 'Deleting...';
+
+        const response = await fetch(`${supabaseUrl}/rest/v1/Metal?id=eq.${id}`, {
+            method: 'DELETE',
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`
+            }
+        });
+
+        if (response.ok) {
+            loadTable();
+        } else {
+            alert("Delete failed.");
+        }
+    }
+
+    // Initial Load
+    loadTable();
+
 </script>
 </body>
 </html>
