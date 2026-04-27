@@ -2,64 +2,30 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Check Metal - AA Sheet Metal</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; background-color: #f4f4f4; margin: 0; padding: 20px; }
-        .welcome-container { background: white; padding: 20px; border-radius: 10px; display: inline-block; box-shadow: 0px 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        
-        table.inventory {
-            border-collapse: collapse;
-            width: 95%;
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            box-shadow: 0px 2px 5px rgba(0,0,0,0.1);
-        }
-
-        table.inventory th, table.inventory td {
-            border: 1px solid #333;
-            padding: 12px;
-            text-align: left;
-        }
-
-        table.inventory th { background: #e6e6e6; font-weight: bold; }
-        table.inventory td[contenteditable="true"] { background: #fffdf0; cursor: text; }
-
-        button {
-            padding: 10px 15px;
-            margin: 5px;
-            cursor: pointer;
-            border: none;
-            border-radius: 4px;
-            font-weight: bold;
-            transition: 0.2s;
-        }
-
-        .btn-nav { background-color: #007bff; color: white; }
-        .btn-add { background-color: #28a745; color: white; }
-        .btn-return { background-color: #6c757d; color: white; }
-        .btn-delete { background-color: #dc3545; color: white; padding: 5px 10px; }
-        
-        button:hover { opacity: 0.8; }
+        body { font-family: sans-serif; text-align: center; background: #f4f4f4; padding: 20px; }
+        .container { background: white; padding: 20px; border-radius: 8px; display: inline-block; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        table { border-collapse: collapse; width: 90%; margin: 20px auto; background: white; }
+        th, td { border: 1px solid #333; padding: 10px; text-align: left; }
+        th { background: #eee; }
+        .error-msg { color: red; font-weight: bold; margin: 10px; display: none; }
+        button { padding: 8px 12px; cursor: pointer; margin: 5px; border-radius: 4px; border: none; background: #007bff; color: white; }
+        .btn-add { background: #28a745; }
+        .btn-del { background: #dc3545; }
     </style>
 </head>
-
 <body>
 
-    <div class="welcome-container">
+    <div class="container">
         <h1>Check Metal</h1>
-        <p>Select a screen:</p>
-        <a href="screenA.html"><button class="btn-nav">New Sheets</button></a>
-        <a href="screenB.html"><button class="btn-nav">Used Sheets</button></a>
-        <br><br>
-        <button onclick="addRow()" class="btn-add">+ Add New Metal</button>
-        <a href="blank.html"><button class="btn-return">Return</button></a>
+        <div id="connectionStatus" class="error-msg">Database Connection Failed! Check Console (F12).</div>
+        <button class="btn-add" onclick="addRow()">+ Add New Metal</button>
+        <a href="blank.html"><button style="background:#6c757d">Return</button></a>
     </div>
 
-    <table id="Metal1Table" class="inventory">
+    <table id="MetalTable">
         <thead>
             <tr>
                 <th>Metal Name</th>
@@ -68,134 +34,83 @@
                 <th>Actions</th>
             </tr>
         </thead>
-        <tbody id="tableBody">
-            </tbody>
+        <tbody id="tableBody"></tbody>
     </table>
 
 <script>
-// ==========================================
-// 1. SUPABASE CONFIGURATION
-// ==========================================
-const SUPABASE_URL = "https://dtlkoxesvryluntpkxst.supabase.co"; 
-const SUPABASE_KEY = "sb_publishable_oFej7rbKhkstLjb0Po5fHQ_oA7G-3u_"; // <--- PASTE KEY HERE
+// --- CONFIGURATION ---
+const S_URL = "https://dtlkoxesvryluntpkxst.supabase.co"; 
+const S_KEY = "sb_publishable_oFej7rbKhkstLjb0Po5fHQ_oA7G-3u_"; 
 
-// Using 'myClient' to avoid "already declared" errors
-const myClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const myClient = window.supabase.createClient(S_URL, S_KEY);
 
-// ==========================================
-// 2. READ (Load Table)
-// ==========================================
 async function loadTable() {
-    const { data, error } = await myClient
-        .from("metal") 
-        .select("*")
-        .order("id", { ascending: true });
+    console.log("Attempting to fetch data...");
+    const { data, error } = await myClient.from("metal").select("*");
 
     if (error) {
-        console.error("Connection Error:", error.message);
-        alert("Error connecting to database. Check console.");
+        console.error("SUPABASE ERROR:", error.message);
+        document.getElementById("connectionStatus").style.display = "block";
+        document.getElementById("connectionStatus").innerText = "Error: " + error.message;
         return;
     }
 
+    console.log("Data Received:", data); // THIS REVEALS THE COLUMN NAMES IN CONSOLE
     const tbody = document.getElementById("tableBody");
-    tbody.innerHTML = ""; // Clear current table
+    tbody.innerHTML = "";
 
     data.forEach(row => {
         const tr = document.createElement("tr");
         tr.dataset.id = row.id;
         
-        // Handling potential variations in column naming (Spaces vs Underscores)
-        const name = row.Metal || row.metal || "Unknown";
-        const newSheets = row["New sheets"] !== undefined ? row["New sheets"] : (row.new_sheets || 0);
-        const usedSheets = row["Used sheets"] !== undefined ? row["Used sheets"] : (row.used_sheets || 0);
+        // We look for 'Metal' or 'metal', 'New sheets' or 'new_sheets', etc.
+        const name = row.Metal || row.metal || "No Name";
+        const valNew = row["New sheets"] ?? row.new_sheets ?? 0;
+        const valUsed = row["Used sheets"] ?? row.used_sheets ?? 0;
 
         tr.innerHTML = `
             <td>${name}</td>
-            <td contenteditable="true" onblur="updateRow(this, 'New sheets')">${newSheets}</td>
-            <td contenteditable="true" onblur="updateRow(this, 'Used sheets')">${usedSheets}</td>
-            <td><button class="btn-delete" onclick="deleteRow(${row.id})">X</button></td>
+            <td contenteditable="true" onblur="updateRow(this, 'New sheets')">${valNew}</td>
+            <td contenteditable="true" onblur="updateRow(this, 'Used sheets')">${valUsed}</td>
+            <td><button class="btn-del" onclick="deleteRow(${row.id})">Delete</button></td>
         `;
         tbody.appendChild(tr);
     });
 }
 
-// ==========================================
-// 3. UPDATE (Edit Cells)
-// ==========================================
-async function updateRow(cell, columnName) {
-    const rowId = cell.parentElement.dataset.id;
-    const newValue = parseInt(cell.textContent.trim());
+async function updateRow(cell, col) {
+    const id = cell.parentElement.dataset.id;
+    const val = parseInt(cell.textContent) || 0;
+    
+    // Attempt update on both possible naming conventions
+    const updateObj = {};
+    updateObj[col] = val; // "New sheets"
+    updateObj[col.replace(" ", "_").toLowerCase()] = val; // "new_sheets"
 
-    if (isNaN(newValue)) {
-        alert("Please enter a numeric value.");
-        loadTable();
-        return;
-    }
-
-    // Try both naming conventions (with space and with underscore)
-    const updateData = {};
-    updateData[columnName] = newValue; 
-    const altName = columnName.replace(" ", "_").toLowerCase();
-    updateData[altName] = newValue;
-
-    const { error } = await myClient
-        .from("metal")
-        .update(updateData)
-        .eq("id", rowId);
-
-    if (error) {
-        console.error("Update failed:", error.message);
-    }
+    const { error } = await myClient.from("metal").update(updateObj).eq("id", id);
+    if (error) console.error("Update Error:", error.message);
 }
 
-// ==========================================
-// 4. CREATE (Add Metal)
-// ==========================================
 async function addRow() {
-    const metalName = prompt("Enter the name of the new metal:");
-    if (!metalName) return;
-
-    // We send multiple variations to ensure it hits your specific column names
-    const { error } = await myClient
-        .from("metal")
-        .insert([{ 
-            "Metal": metalName,
-            "metal": metalName, 
-            "New sheets": 0, 
-            "new_sheets": 0,
-            "Used sheets": 0,
-            "used_sheets": 0
-        }]);
-
-    if (error) {
-        console.error("Insert failed:", error.message);
-    }
-    
-    loadTable(); // Refresh the view
+    const n = prompt("Metal Name:");
+    if (!n) return;
+    const { error } = await myClient.from("metal").insert([{ 
+        "Metal": n, "metal": n, 
+        "New sheets": 0, "new_sheets": 0, 
+        "Used sheets": 0, "used_sheets": 0 
+    }]);
+    if (error) console.error("Add Error:", error.message);
+    loadTable();
 }
 
-// ==========================================
-// 5. DELETE (Remove Metal)
-// ==========================================
 async function deleteRow(id) {
-    if (!confirm("Delete this metal record?")) return;
-
-    const { error } = await myClient
-        .from("metal")
-        .delete()
-        .eq("id", id);
-
-    if (error) {
-        console.error("Delete failed:", error.message);
-    }
-    
-    loadTable(); // Refresh the view
+    if (!confirm("Delete?")) return;
+    const { error } = await myClient.from("metal").delete().eq("id", id);
+    if (error) console.error("Delete Error:", error.message);
+    loadTable();
 }
 
-// Initial Load on Page Open
 loadTable();
-
 </script>
-
 </body>
 </html>
