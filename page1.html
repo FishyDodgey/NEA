@@ -69,37 +69,30 @@ td[contenteditable] {
 <tr>
     <th>Metal</th>
     <th>New Sheets</th>
-    <th>Used Sheets</th>
+    <th>Old Sheets</th>
     <th>Delete</th>
 </tr>
 </table>
 
 <script>
 
-// ===============================
-// CONNECT TO SUPABASE
-// ===============================
+// CONNECT
 const supabase = window.supabase.createClient(
     "https://dtlkoxesvryluntpkxst.supabase.co",
     "sb_publishable_oFej7rbKhkstLjb0Po5fHQ_oA7G-3u_"
 );
 
-// ===============================
-// LOAD DATA
-// ===============================
+// LOAD
 async function loadTable() {
-    const { data, error } = await supabase
-        .from("metal")
-        .select("*");
+    const { data, error } = await supabase.from("metal").select("*");
 
     if (error) {
-        console.error(error);
         alert(error.message);
+        console.error(error);
         return;
     }
 
     const table = document.getElementById("Metal1Table");
-
     while (table.rows.length > 1) table.deleteRow(1);
 
     data.forEach(row => {
@@ -108,8 +101,8 @@ async function loadTable() {
 
         tr.innerHTML = `
             <td>${row["Metal"]}</td>
-            <td contenteditable onblur="updateRow(this)">${row["New sheets"]}</td>
-            <td contenteditable onblur="updateRow(this)">${row["Used sheets"]}</td>
+            <td contenteditable onblur="updateRow(this)">${row["New Sheets"]}</td>
+            <td contenteditable onblur="updateRow(this)">${row["Old Sheets"]}</td>
             <td><button onclick="deleteRow('${row.id}')">X</button></td>
         `;
 
@@ -117,17 +110,15 @@ async function loadTable() {
     });
 }
 
-// ===============================
 // UPDATE
-// ===============================
 async function updateRow(cell) {
     const row = cell.parentElement;
     const id = row.dataset.id;
 
     const newSheets = parseInt(row.children[1].textContent);
-    const usedSheets = parseInt(row.children[2].textContent);
+    const oldSheets = parseInt(row.children[2].textContent);
 
-    if (isNaN(newSheets) || isNaN(usedSheets)) {
+    if (isNaN(newSheets) || isNaN(oldSheets)) {
         alert("Numbers only");
         loadTable();
         return;
@@ -136,20 +127,18 @@ async function updateRow(cell) {
     const { error } = await supabase
         .from("metal")
         .update({
-            "New sheets": newSheets,
-            "Used sheets": usedSheets
+            "New Sheets": newSheets,
+            "Old Sheets": oldSheets
         })
         .eq("id", id);
 
     if (error) {
-        console.error(error);
         alert(error.message);
+        console.error(error);
     }
 }
 
-// ===============================
 // CREATE
-// ===============================
 async function addRow() {
     const metal = prompt("Enter metal name:");
     if (!metal) return;
@@ -159,22 +148,20 @@ async function addRow() {
         .insert([
             {
                 "Metal": metal,
-                "New sheets": 0,
-                "Used sheets": 0
+                "New Sheets": 0,
+                "Old Sheets": 0
             }
         ]);
 
     if (error) {
-        console.error(error);
         alert(error.message);
+        console.error(error);
     }
 
     loadTable();
 }
 
-// ===============================
 // DELETE
-// ===============================
 async function deleteRow(id) {
     if (!confirm("Delete this metal?")) return;
 
@@ -184,16 +171,14 @@ async function deleteRow(id) {
         .eq("id", id);
 
     if (error) {
-        console.error(error);
         alert(error.message);
+        console.error(error);
     }
 
     loadTable();
 }
 
-// ===============================
 // START
-// ===============================
 loadTable();
 
 </script>
