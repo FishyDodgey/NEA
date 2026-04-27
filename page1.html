@@ -61,7 +61,7 @@ function logDebug(msg) {
 
 async function loadData() {
     logDebug("Connecting to Supabase...");
-    const { data, error } = await _db.from("metal").select("*");
+    const { data, error } = await _db.from("Metal").select("*");
 
     if (error) {
         logDebug("ERROR: " + error.message);
@@ -104,7 +104,7 @@ async function saveEdit(cell, colName) {
     payload[colName] = val; // Try with space
     payload[colName.replace(" ", "_").toLowerCase()] = val; // Try with underscore
 
-    const { error } = await _db.from("metal").update(payload).eq("id", id);
+    const { error } = await _db.from("Metal").update(payload).eq("id", id);
     if (error) logDebug("Update Error: " + error.message);
 }
 
@@ -112,8 +112,8 @@ async function addRow() {
     const n = prompt("Enter Metal Name:");
     if (!n) return;
 
-    const { error } = await _db.from("metal").insert([{ 
-        "Metal": n, "metal": n,
+    const { error } = await _db.from("Metal").insert([{ 
+        "Metal": n, "Metal": n,
         "New sheets": 0, "new_sheets": 0,
         "Used sheets": 0, "used_sheets": 0
     }]);
@@ -124,7 +124,7 @@ async function addRow() {
 
 async function removeRow(id) {
     if (!confirm("Remove this record?")) return;
-    const { error } = await _db.from("metal").delete().eq("id", id);
+    const { error } = await _db.from("Metal").delete().eq("id", id);
     if (error) logDebug("Delete Error: " + error.message);
     loadData();
 }
