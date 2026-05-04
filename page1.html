@@ -82,8 +82,8 @@
                 tr.dataset.id = row.id;
                 tr.innerHTML = `
                     <td>${row.Metal}</td>
-                    <td contenteditable="true" onblur="updateMetal(this, 'New sheets')">${row["New sheets"]}</td>
-                    <td contenteditable="true" onblur="updateMetal(this, 'Used sheets')">${row["Used sheets"]}</td>
+                    <td contenteditable="true" onblur="updateMetal(this, 'New Sheets')">${row["New Sheets"]}</td>
+                    <td contenteditable="true" onblur="updateMetal(this, 'Used Sheets')">${row["Used Sheets"]}</td>
                     <td><button class="btn-del" onclick="deleteMetal(${row.id})">Delete</button></td>
                 `;
                 tbody.appendChild(tr);
