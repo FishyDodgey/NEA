@@ -1,155 +1,320 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New Sheets</title>
-    <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>New Sheets</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background:#f4f6f8;
+    text-align:center;
+    padding:20px;
+}
+
+.welcome-container {
+    background:white;
+    padding:20px;
+    border-radius:10px;
+    display:inline-block;
+    box-shadow:0 4px 6px rgba(0,0,0,0.1);
+}
+
+button {
+    padding:10px 15px;
+    margin:6px;
+    cursor:pointer;
+    border:none;
+    border-radius:5px;
+    font-weight:bold;
+}
+
+.btn-return { background:#6c757d; color:white; }
+.btn-add { background:#28a745; color:white; }
+.btn-delete { background:#dc3545; color:white; }
+.btn-refresh { background:#007bff; color:white; }
+
+#status {
+    color:#555;
+    font-style:italic;
+    margin:10px;
+}
+
+table {
+    border-collapse:collapse;
+    width:90%;
+    max-width:900px;
+    margin:20px auto;
+    background:white;
+}
+
+th, td {
+    border:1px solid #ccc;
+    padding:10px;
+    text-align:center;
+}
+
+th {
+    background:#e6e6e6;
+}
+
+td[contenteditable="true"] {
+    background:#fffdf5;
+    cursor:pointer;
+}
+
+tr.selected {
+    background:#c8e6c9;
+}
+</style>
 </head>
+
 <body>
-    <div class="welcome-container">
-        <h1>New Sheets</h1>
 
-        <!-- Buttons -->
-        <div class="button-row">
-            <a href="page1.html"><button>Return</button></a>
-            <button onclick="addRow()">Add Row</button>
-            <button onclick="deleteRow()">Delete Last Row</button>
-            <button onclick="clearTable()">Clear Table</button>
-        </div>
+<div class="welcome-container">
+    <h1>New Sheets</h1>
 
-        <!-- Table -->
-       <table id="myTable" border="1" style="margin-top:20px;width:80%;text-align:center;">
-    <tr>
-        <th>Metal</th>
-        <th>New sheets</th>
-        <th>Size</th>
-        <th>Thickness</th>
-        <th>Warehouse</th>
-    </tr>
+    <p id="status">Waiting for connection...</p>
+
+    <div class="button-row">
+        <a href="page1.html"><button class="btn-return">Return</button></a>
+        <button class="btn-add" onclick="addRow()">Add Row</button>
+        <button class="btn-delete" onclick="deleteRow()">Delete Selected</button>
+        <button class="btn-refresh" onclick="loadTable()">Refresh</button>
+    </div>
+</div>
+
+<table id="myTable">
+    <thead>
+        <tr>
+            <th>Metal</th>
+            <th>New sheets</th>
+            <th>Size</th>
+            <th>Thickness</th>
+            <th>Warehouse</th>
+        </tr>
+    </thead>
+
+    <tbody id="tableBody"></tbody>
 </table>
 
-
-    </div>
-
 <script>
+/* ==============================
+   SUPABASE SETTINGS
+   ============================== */
 
-/* =========================
-   LOAD CSV (only first time)
-========================= */
+const supabaseUrl = "https://dtlkoxesvryluntpkxst.supabase.co";
 
-const STORAGE_KEY = "inventoryTableData";
+// Paste your anon public key here
+const supabaseKey = "dtlkoxesvryluntpkxst";
 
-function loadCSV() {
+const statusText = document.getElementById("status");
 
-  // If we already edited before, load saved version instead
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved) {
-    buildTable(JSON.parse(saved));
-    return;
-  }
+let selectedMetal = null;
 
-  fetch("Newsheets.csv")
-    .then(response => response.text())
-    .then(csv => {
-      const rows = csv.trim().split("\n").map(r => r.split(","));
-      buildTable(rows.slice(1)); // skip header
-      saveTable(); // store initial data
-    })
-    .catch(err => console.error("CSV load error:", err));
-}
+/* ==============================
+   READ - LOAD DATA
+   ============================== */
 
-/* =========================
-   BUILD TABLE
-========================= */
+async function loadTable() {
+    statusText.textContent = "Loading data from Supabase...";
 
-function buildTable(data) {
-  const table = document.getElementById("myTable");
+    const response = await fetch(
+        `${supabaseUrl}/rest/v1/Newsheets?select=*`,
+        {
+            method: "GET",
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
+                Accept: "application/json"
+            }
+        }
+    );
 
-  while (table.rows.length > 1) table.deleteRow(1);
+    const data = await response.json();
 
-  data.forEach(r => {
-    const tr = table.insertRow(-1);
-
-    for (let i = 0; i < 5; i++) {
-      const td = tr.insertCell(i);
-      td.textContent = r[i] || "";
-      td.contentEditable = "true"; // makes cells editable
+    if (!response.ok) {
+        console.error(data);
+        statusText.textContent = "Error: " + data.message;
+        return;
     }
-  });
+
+    statusText.textContent = "Connected successfully.";
+
+    const tbody = document.getElementById("tableBody");
+    tbody.innerHTML = "";
+
+    data.forEach(row => {
+        const tr = document.createElement("tr");
+
+        tr.dataset.metal = row["Metal"];
+
+        tr.onclick = () => {
+            document.querySelectorAll("#myTable tbody tr")
+                .forEach(r => r.classList.remove("selected"));
+
+            tr.classList.add("selected");
+            selectedMetal = row["Metal"];
+        };
+
+        tr.innerHTML = `
+            <td contenteditable="true" onblur="updateCell(this, 'Metal')">${row["Metal"]}</td>
+            <td contenteditable="true" onblur="updateCell(this, 'New sheets')">${row["New sheets"]}</td>
+            <td contenteditable="true" onblur="updateCell(this, 'Size')">${row["Size"]}</td>
+            <td contenteditable="true" onblur="updateCell(this, 'Thickness')">${row["Thickness"]}</td>
+            <td contenteditable="true" onblur="updateCell(this, 'Warehouse')">${row["Warehouse"]}</td>
+        `;
+
+        tbody.appendChild(tr);
+    });
 }
 
-/* =========================
-   SAVE TABLE (AUTO SAVE)
-========================= */
+/* ==============================
+   CREATE - ADD ROW
+   ============================== */
 
-function saveTable() {
-  const table = document.getElementById("myTable");
-  let data = [];
+async function addRow() {
+    const metal = prompt("Enter metal name:");
+    if (!metal) return;
 
-  for (let i = 1; i < table.rows.length; i++) {
-    const cells = table.rows[i].cells;
-    data.push([
-      cells[0].textContent.trim(),
-      cells[1].textContent.trim(),
-      cells[2].textContent.trim(),
-      cells[3].textContent.trim(),
-      cells[4].textContent.trim()
-    ]);
-  }
+    const newSheets = prompt("Enter number of new sheets:");
+    const size = prompt("Enter size, for example 500x1000:");
+    const thickness = prompt("Enter thickness, for example 2mm:");
+    const warehouse = prompt("Enter warehouse number:");
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    const newRow = {
+        "Metal": metal,
+        "New sheets": parseInt(newSheets) || 0,
+        "Size": size || "0x0",
+        "Thickness": thickness || "0mm",
+        "Warehouse": parseInt(warehouse) || 0
+    };
+
+    statusText.textContent = "Adding row...";
+
+    const response = await fetch(
+        `${supabaseUrl}/rest/v1/Newsheets`,
+        {
+            method: "POST",
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
+                "Content-Type": "application/json",
+                Prefer: "return=representation"
+            },
+            body: JSON.stringify(newRow)
+        }
+    );
+
+    const result = await response.json();
+
+    if (response.ok) {
+        statusText.textContent = "Row added.";
+        loadTable();
+    } else {
+        console.error(result);
+        alert("Add failed: " + result.message);
+    }
 }
 
-/* =========================
-   BUTTON FUNCTIONS
-========================= */
+/* ==============================
+   UPDATE - EDIT CELL
+   ============================== */
 
-function addRow() {
-  const table = document.getElementById("myTable");
-  const row = table.insertRow(-1);
+async function updateCell(cell, columnName) {
+    const tr = cell.parentElement;
+    const originalMetal = tr.dataset.metal;
 
-  for (let i = 0; i < 5; i++) {
-    const td = row.insertCell(i);
-    td.contentEditable = "true";
-    td.textContent = "";
-  }
+    let newValue = cell.textContent.trim();
 
-  saveTable();
+    if (columnName === "New sheets" || columnName === "Warehouse") {
+        newValue = parseInt(newValue);
+
+        if (isNaN(newValue)) {
+            alert(columnName + " must be a whole number.");
+            loadTable();
+            return;
+        }
+    }
+
+    const updatedData = {};
+    updatedData[columnName] = newValue;
+
+    statusText.textContent = "Updating...";
+
+    const response = await fetch(
+        `${supabaseUrl}/rest/v1/Newsheets?Metal=eq.${encodeURIComponent(originalMetal)}`,
+        {
+            method: "PATCH",
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(updatedData)
+        }
+    );
+
+    if (response.ok) {
+        statusText.textContent = "Update saved.";
+
+        if (columnName === "Metal") {
+            tr.dataset.metal = newValue;
+            selectedMetal = newValue;
+        }
+
+    } else {
+        const err = await response.json();
+        console.error(err);
+        alert("Update failed: " + err.message);
+        loadTable();
+    }
 }
 
-function deleteRow() {
-  const table = document.getElementById("myTable");
-  if (table.rows.length > 1) {
-    table.deleteRow(-1);
-    saveTable();
-  }
+/* ==============================
+   DELETE - DELETE SELECTED ROW
+   ============================== */
+
+async function deleteRow() {
+    if (!selectedMetal) {
+        alert("Select a row first.");
+        return;
+    }
+
+    if (!confirm("Delete this sheet record?")) return;
+
+    statusText.textContent = "Deleting...";
+
+    const response = await fetch(
+        `${supabaseUrl}/rest/v1/Newsheets?Metal=eq.${encodeURIComponent(selectedMetal)}`,
+        {
+            method: "DELETE",
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`
+            }
+        }
+    );
+
+    if (response.ok) {
+        selectedMetal = null;
+        statusText.textContent = "Row deleted.";
+        loadTable();
+    } else {
+        const err = await response.json();
+        console.error(err);
+        alert("Delete failed: " + err.message);
+    }
 }
 
-function clearTable() {
-  const table = document.getElementById("myTable");
-  while (table.rows.length > 1) table.deleteRow(1);
-  saveTable();
-}
+/* ==============================
+   START PAGE
+   ============================== */
 
-/* =========================
-   AUTO-SAVE WHEN EDITING
-========================= */
-
-document.addEventListener("input", function(e) {
-  if (e.target.closest("#myTable")) {
-    saveTable();
-  }
-});
-
-/* =========================
-   START
-========================= */
-
-loadCSV();
-
+loadTable();
 </script>
-
 
 </body>
 </html>
