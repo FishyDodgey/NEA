@@ -1,17 +1,62 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>Used Sheets</title>
 
 <style>
-body { font-family: Arial; text-align:center; background:#f4f6f8; }
-table { border-collapse: collapse; width:85%; margin:auto; background:white; }
-th { background:#e6e6e6; padding:10px; border:1px solid #ccc; }
-td { border:1px solid #ccc; padding:8px; }
-td[contenteditable] { background:#fffdf5; }
-tr.selected { background:#c8e6c9; }
-button { padding:10px 15px; margin:10px; cursor:pointer; }
+body { 
+    font-family: Arial, sans-serif; 
+    text-align:center; 
+    background:#f4f6f8; 
+    padding:20px;
+}
+
+table { 
+    border-collapse: collapse; 
+    width:85%; 
+    margin:20px auto; 
+    background:white; 
+}
+
+th { 
+    background:#e6e6e6; 
+    padding:10px; 
+    border:1px solid #ccc; 
+}
+
+td { 
+    border:1px solid #ccc; 
+    padding:8px; 
+}
+
+td[contenteditable="true"] { 
+    background:#fffdf5; 
+    cursor:pointer;
+}
+
+tr.selected { 
+    background:#c8e6c9; 
+}
+
+button { 
+    padding:10px 15px; 
+    margin:10px; 
+    cursor:pointer; 
+    border:none;
+    border-radius:5px;
+    font-weight:bold;
+}
+
+.btn-return { background:#6c757d; color:white; }
+.btn-add { background:#28a745; color:white; }
+.btn-delete { background:#dc3545; color:white; }
+.btn-refresh { background:#007bff; color:white; }
+
+#status {
+    color:#555;
+    font-style:italic;
+}
 </style>
 </head>
 
@@ -19,135 +64,254 @@ button { padding:10px 15px; margin:10px; cursor:pointer; }
 
 <h1>Used Sheets</h1>
 
-<a href="page1.html"><button>Return to Check Metal</button></a>
+<p id="status">Waiting for connection...</p>
+
+<a href="page1.html"><button class="btn-return">Return to Check Metal</button></a>
 
 <br>
 
-<button onclick="addRow()">Add Row</button>
-<button onclick="deleteRow()">Delete Selected</button>
-<button onclick="downloadCSV()">Download CSV</button>
-<button onclick="resetData()">Reset to Original</button>
+<button class="btn-add" onclick="addRow()">Add Row</button>
+<button class="btn-delete" onclick="deleteRow()">Delete Selected</button>
+<button class="btn-refresh" onclick="loadTable()">Refresh</button>
 
-<table id="table">
+<table id="usedTable">
 <thead>
 <tr>
-<th>Metal</th>
-<th>Used Sheet</th>
-<th>Size</th>
-<th>Thickness</th>
-<th>Warehouse</th>
+    <th>Metal</th>
+    <th>Used Sheet</th>
+    <th>Size</th>
+    <th>Thickness</th>
+    <th>Warehouse</th>
 </tr>
 </thead>
-<tbody></tbody>
+
+<tbody id="tableBody"></tbody>
 </table>
 
 <script>
-let data = [];
-let selectedIndex = null;
+/* ==============================
+   SUPABASE SETTINGS
+   ============================== */
 
-/* ---------- LOAD CSV FROM GITHUB ---------- */
-async function loadCSV() {
+const supabaseUrl = "https://dtlkoxesvryluntpkxst.supabase.co";
 
-    // If user already edited before, load saved version
-    const saved = localStorage.getItem("usedSheetsData");
-    if (saved) {
-        data = JSON.parse(saved);
-        renderTable();
+// Paste your anon public key here
+const supabaseKey = "sb_publishable_oFej7rbKhkstLjb0Po5fHQ_oA7G-3u_";
+
+const statusText = document.getElementById("status");
+
+let selectedMetal = null;
+
+/* ==============================
+   READ - LOAD TABLE
+   ============================== */
+
+async function loadTable() {
+    statusText.textContent = "Loading data from Supabase...";
+
+    const response = await fetch(
+        `${supabaseUrl}/rest/v1/Usedsheets?select=*`,
+        {
+            method: "GET",
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
+                Accept: "application/json"
+            }
+        }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        console.error(data);
+        statusText.textContent = "Error: " + data.message;
         return;
     }
 
-    // Otherwise load the CSV file from repo
-    const res = await fetch("Usedsheets.csv");
-    const text = await res.text();
+    statusText.textContent = "Connected successfully.";
 
-    const rows = text.trim().split("\n").slice(1);
-    data = rows.map(r => {
-        const [metal, usedSheet, size, thickness, warehouse] = r.split(",");
-        return { metal, usedSheet, size, thickness, warehouse };
-    });
-
-    saveLocal();
-    renderTable();
-}
-
-/* ---------- SAVE TO BROWSER ---------- */
-function saveLocal() {
-    localStorage.setItem("usedSheetsData", JSON.stringify(data));
-}
-
-/* ---------- RENDER TABLE ---------- */
-function renderTable() {
-    const tbody = document.querySelector("tbody");
+    const tbody = document.getElementById("tableBody");
     tbody.innerHTML = "";
 
-    data.forEach((row, index) => {
+    data.forEach(row => {
         const tr = document.createElement("tr");
 
+        tr.dataset.metal = row.metal;
+
         tr.onclick = () => {
-            document.querySelectorAll("tr").forEach(r => r.classList.remove("selected"));
+            document.querySelectorAll("#usedTable tbody tr")
+                .forEach(r => r.classList.remove("selected"));
+
             tr.classList.add("selected");
-            selectedIndex = index;
+            selectedMetal = row.metal;
         };
 
-        Object.keys(row).forEach(key => {
-            const td = document.createElement("td");
-            td.contentEditable = true;
-            td.innerText = row[key];
-
-            td.oninput = () => {
-                data[index][key] = td.innerText;
-                saveLocal();
-            };
-
-            tr.appendChild(td);
-        });
+        tr.innerHTML = `
+            <td contenteditable="true" onblur="updateCell(this, 'metal')">${row.metal}</td>
+            <td contenteditable="true" onblur="updateCell(this, 'usedSheet')">${row.usedSheet}</td>
+            <td contenteditable="true" onblur="updateCell(this, 'size')">${row.size}</td>
+            <td contenteditable="true" onblur="updateCell(this, 'thickness')">${row.thickness}</td>
+            <td contenteditable="true" onblur="updateCell(this, 'warehouse')">${row.warehouse}</td>
+        `;
 
         tbody.appendChild(tr);
     });
 }
 
-/* ---------- CREATE ---------- */
-function addRow() {
-    data.push({ metal:"new", usedSheet:"0", size:"0x0", thickness:"0", warehouse:"0" });
-    saveLocal();
-    renderTable();
+/* ==============================
+   CREATE - ADD ROW
+   ============================== */
+
+async function addRow() {
+    const metal = prompt("Enter metal name:");
+    if (!metal) return;
+
+    const usedSheet = prompt("Enter number of used sheets:");
+    const size = prompt("Enter size, for example 400x1000:");
+    const thickness = prompt("Enter thickness:");
+    const warehouse = prompt("Enter warehouse number:");
+
+    const newRow = {
+        metal: metal,
+        usedSheet: parseInt(usedSheet) || 0,
+        size: size || "0x0",
+        thickness: parseFloat(thickness) || 0,
+        warehouse: parseInt(warehouse) || 0
+    };
+
+    statusText.textContent = "Adding row...";
+
+    const response = await fetch(
+        `${supabaseUrl}/rest/v1/Usedsheets`,
+        {
+            method: "POST",
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
+                "Content-Type": "application/json",
+                Prefer: "return=representation"
+            },
+            body: JSON.stringify(newRow)
+        }
+    );
+
+    const result = await response.json();
+
+    if (response.ok) {
+        statusText.textContent = "Row added.";
+        loadTable();
+    } else {
+        console.error(result);
+        alert("Add failed: " + result.message);
+    }
 }
 
-/* ---------- DELETE ---------- */
-function deleteRow() {
-    if (selectedIndex === null) {
-        alert("Select a row first");
+/* ==============================
+   UPDATE - EDIT CELL
+   ============================== */
+
+async function updateCell(cell, columnName) {
+    const tr = cell.parentElement;
+    const originalMetal = tr.dataset.metal;
+
+    let newValue = cell.textContent.trim();
+
+    if (columnName === "usedSheet" || columnName === "warehouse") {
+        newValue = parseInt(newValue);
+
+        if (isNaN(newValue)) {
+            alert(columnName + " must be a whole number.");
+            loadTable();
+            return;
+        }
+    }
+
+    if (columnName === "thickness") {
+        newValue = parseFloat(newValue);
+
+        if (isNaN(newValue)) {
+            alert("Thickness must be a number.");
+            loadTable();
+            return;
+        }
+    }
+
+    const updatedData = {};
+    updatedData[columnName] = newValue;
+
+    statusText.textContent = "Updating...";
+
+    const response = await fetch(
+        `${supabaseUrl}/rest/v1/Usedsheets?metal=eq.${encodeURIComponent(originalMetal)}`,
+        {
+            method: "PATCH",
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(updatedData)
+        }
+    );
+
+    if (response.ok) {
+        statusText.textContent = "Update saved.";
+
+        if (columnName === "metal") {
+            tr.dataset.metal = newValue;
+            selectedMetal = newValue;
+        }
+
+    } else {
+        const err = await response.json();
+        console.error(err);
+        alert("Update failed: " + err.message);
+        loadTable();
+    }
+}
+
+/* ==============================
+   DELETE - DELETE SELECTED ROW
+   ============================== */
+
+async function deleteRow() {
+    if (!selectedMetal) {
+        alert("Select a row first.");
         return;
     }
 
-    data.splice(selectedIndex, 1);
-    selectedIndex = null;
-    saveLocal();
-    renderTable();
+    if (!confirm("Delete this used sheet record?")) return;
+
+    statusText.textContent = "Deleting...";
+
+    const response = await fetch(
+        `${supabaseUrl}/rest/v1/Usedsheets?metal=eq.${encodeURIComponent(selectedMetal)}`,
+        {
+            method: "DELETE",
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`
+            }
+        }
+    );
+
+    if (response.ok) {
+        selectedMetal = null;
+        statusText.textContent = "Row deleted.";
+        loadTable();
+    } else {
+        const err = await response.json();
+        console.error(err);
+        alert("Delete failed: " + err.message);
+    }
 }
 
-/* ---------- EXPORT CSV ---------- */
-function downloadCSV() {
-    let csv = "metal,usedSheet,size,thickness,warehouse\n";
+/* ==============================
+   START PAGE
+   ============================== */
 
-    data.forEach(r => {
-        csv += `${r.metal},${r.usedSheet},${r.size},${r.thickness},${r.warehouse}\n`;
-    });
-
-    const blob = new Blob([csv], { type:"text/csv" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "Usedsheets.csv";
-    a.click();
-}
-
-/* ---------- RESET ---------- */
-function resetData() {
-    localStorage.removeItem("usedSheetsData");
-    location.reload();
-}
-
-loadCSV();
+loadTable();
 </script>
 
 </body>
