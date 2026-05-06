@@ -160,38 +160,36 @@ async function loadTable() {
 // ==============================
 async function addRow() {
     const customer = prompt("Enter customer/order name:");
-
     if (!customer) return;
 
- const newRow = {
-    customer: customer,
-    metal: "aluminium",
-    price: 0,
-    quantity: "0x0",
-    thickness: 0,
-    orderID: Date.now().toString()
-};
+    const fakeOrderID = String(Date.now());
 
-    statusText.textContent = "Adding row...";
+    const newRow = {
+        customer: customer,
+        metal: "aluminium",
+        price: 0,
+        quantity: "0x0",
+        thickness: 0,
+        orderID: fakeOrderID
+    };
 
-    const response = await fetch(
-        `${supabaseUrl}/rest/v1/Customerorders`,
-        {
-            method: "POST",
-            headers: {
-                apikey: supabaseKey,
-                Authorization: `Bearer ${supabaseKey}`,
-                "Content-Type": "application/json",
-                Prefer: "return=representation"
-            },
-            body: JSON.stringify(newRow)
-        }
-    );
+    console.log("Sending this to Supabase:", newRow);
+
+    const response = await fetch(`${supabaseUrl}/rest/v1/Customerorders`, {
+        method: "POST",
+        headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${supabaseKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=representation"
+        },
+        body: JSON.stringify(newRow)
+    });
 
     const result = await response.json();
 
     if (response.ok) {
-        statusText.textContent = "Row added.";
+        alert("Row added");
         loadTable();
     } else {
         console.error(result);
