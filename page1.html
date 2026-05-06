@@ -4,22 +4,66 @@
     <meta charset="UTF-8">
     <title>AA Sheet Metal - Inventory CRUD</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4; text-align: center; }
-        .container { background: white; padding: 20px; border-radius: 10px; display: inline-block; box-shadow: 0px 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        
-        table { border-collapse: collapse; width: 90%; max-width: 800px; margin: 20px auto; background: white; }
-        th, td { border: 1px solid #333; padding: 10px; text-align: left; }
-        th { background: #e6e6e6; }
-        td[contenteditable="true"] { background: #fffdf0; cursor: pointer; }
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background-color: #f4f4f4; 
+            text-align: center; 
+        }
 
-        button { padding: 10px 15px; margin: 5px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; }
+        .container { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 10px; 
+            display: inline-block; 
+            box-shadow: 0px 4px 6px rgba(0,0,0,0.1); 
+            margin-bottom: 20px; 
+        }
+        
+        table { 
+            border-collapse: collapse; 
+            width: 90%; 
+            max-width: 800px; 
+            margin: 20px auto; 
+            background: white; 
+        }
+
+        th, td { 
+            border: 1px solid #333; 
+            padding: 10px; 
+            text-align: left; 
+        }
+
+        th { 
+            background: #e6e6e6; 
+        }
+
+        td[contenteditable="true"] { 
+            background: #fffdf0; 
+            cursor: pointer; 
+        }
+
+        button { 
+            padding: 10px 15px; 
+            margin: 5px; 
+            cursor: pointer; 
+            border: none; 
+            border-radius: 5px; 
+            font-weight: bold; 
+        }
+
         .btn-nav { background-color: #007bff; color: white; }
         .btn-add { background-color: #28a745; color: white; }
         .btn-del { background-color: #dc3545; color: white; }
         
-        #status { color: #555; font-style: italic; margin-bottom: 10px; }
+        #status { 
+            color: #555; 
+            font-style: italic; 
+            margin-bottom: 10px; 
+        }
     </style>
 </head>
+
 <body>
 
     <div class="container">
@@ -27,8 +71,10 @@
         <p id="status">Waiting for connection...</p>
         
         <a href="screenA.html"><button class="btn-nav">New Sheets</button></a>
-        <a href="screenB.html"><button class="btn-nav">Used Sheets</button></a>
+        <a href="screenB.html"><button class="btn-nav">Old Sheets</button></a>
+
         <br><br>
+
         <button class="btn-add" onclick="addMetal()">+ Add New Metal</button>
         <a href="blank.html"><button style="background:#6c757d; color:white;">Return</button></a>
     </div>
@@ -38,100 +84,129 @@
             <tr>
                 <th>Metal Name</th>
                 <th>New Sheets</th>
-                <th>Used Sheets</th>
+                <th>Old Sheets</th>
                 <th>Actions</th>
             </tr>
         </thead>
-        <tbody id="tableBody">
-            </tbody>
+
+        <tbody id="tableBody"></tbody>
     </table>
 
 <script>
     // ==============================
-    // SUPABASE SETTINGS (Update these!)
+    // SUPABASE SETTINGS
     // ==============================
     const supabaseUrl = 'https://dtlkoxesvryluntpkxst.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0bGtveGVzdnJ5bHVudHBreHN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNTA5MDAsImV4cCI6MjA4OTkyNjkwMH0.fG6am6oarO57m2jF4dbGxeHrkogUh_G579w7rTDhHL0';
+
+    const supabaseKey = 'PASTE-YOUR-ANON-PUBLIC-KEY-HERE';
 
     const statusText = document.getElementById('status');
 
     // ==============================
-    // 1. READ (Load Table)
+    // 1. READ - Load table
     // ==============================
     async function loadTable() {
         statusText.textContent = 'Loading data...';
-        
-        const response = await fetch(`${supabaseUrl}/rest/v1/Metal?select=*&order=id.asc`, {
-            method: 'GET',
-            headers: {
-                apikey: supabaseKey,
-                Authorization: `Bearer ${supabaseKey}`,
-                Accept: 'application/json'
+
+        const response = await fetch(
+            `${supabaseUrl}/rest/v1/Metal?select=*`,
+            {
+                method: 'GET',
+                headers: {
+                    apikey: supabaseKey,
+                    Authorization: `Bearer ${supabaseKey}`,
+                    Accept: 'application/json'
+                }
             }
-        });
+        );
 
         const data = await response.json();
 
         if (response.ok) {
             statusText.textContent = 'Connected successfully.';
+
             const tbody = document.getElementById('tableBody');
             tbody.innerHTML = '';
 
             data.forEach(row => {
                 const tr = document.createElement('tr');
-                tr.dataset.id = row.id;
+
+                tr.dataset.metal = row["Metal"];
+
                 tr.innerHTML = `
-                    <td>${row.Metal}</td>
-                    <td contenteditable="true" onblur="updateMetal(this, 'New Sheets')">${row["New Sheets"]}</td>
-                    <td contenteditable="true" onblur="updateMetal(this, 'Used Sheets')">${row["Used Sheets"]}</td>
-                    <td><button class="btn-del" onclick="deleteMetal(${row.id})">Delete</button></td>
+                    <td>${row["Metal"]}</td>
+
+                    <td contenteditable="true" 
+                        onblur="updateMetal(this, 'New Sheets')">
+                        ${row["New Sheets"]}
+                    </td>
+
+                    <td contenteditable="true" 
+                        onblur="updateMetal(this, 'Old Sheets')">
+                        ${row["Old Sheets"]}
+                    </td>
+
+                    <td>
+                        <button class="btn-del" onclick="deleteMetal('${row["Metal"]}')">
+                            Delete
+                        </button>
+                    </td>
                 `;
+
                 tbody.appendChild(tr);
             });
+
         } else {
+            console.error(data);
             statusText.textContent = 'Error: ' + data.message;
         }
     }
 
     // ==============================
-    // 2. CREATE (Add Row)
+    // 2. CREATE - Add new metal
     // ==============================
     async function addMetal() {
         const name = prompt("Enter Metal Name:");
+
         if (!name) return;
 
         statusText.textContent = 'Adding row...';
 
         const newRow = {
             "Metal": name,
-            "New sheets": 0,
-            "Used sheets": 0
+            "New Sheets": 0,
+            "Old Sheets": 0
         };
 
-        const response = await fetch(`${supabaseUrl}/rest/v1/Metal`, {
-            method: 'POST',
-            headers: {
-                apikey: supabaseKey,
-                Authorization: `Bearer ${supabaseKey}`,
-                'Content-Type': 'application/json',
-                Prefer: 'return=representation'
-            },
-            body: JSON.stringify(newRow)
-        });
+        const response = await fetch(
+            `${supabaseUrl}/rest/v1/Metal`,
+            {
+                method: 'POST',
+                headers: {
+                    apikey: supabaseKey,
+                    Authorization: `Bearer ${supabaseKey}`,
+                    'Content-Type': 'application/json',
+                    Prefer: 'return=representation'
+                },
+                body: JSON.stringify(newRow)
+            }
+        );
+
+        const result = await response.json();
 
         if (response.ok) {
             loadTable();
         } else {
-            const err = await response.json();
-            alert("Add failed: " + err.message);
+            console.error(result);
+            alert("Add failed: " + result.message);
         }
     }
 
     // ==============================
-    // 3. UPDATE (Edit Cell)
+    // 3. UPDATE - Edit cell
     // ==============================
     async function updateMetal(cell, columnName) {
-        const id = cell.parentElement.dataset.id;
+        const metalName = cell.parentElement.dataset.metal;
         const newValue = parseInt(cell.textContent.trim());
 
         if (isNaN(newValue)) {
@@ -145,50 +220,61 @@
         const updatedData = {};
         updatedData[columnName] = newValue;
 
-        const response = await fetch(`${supabaseUrl}/rest/v1/Metal?id=eq.${id}`, {
-            method: 'PATCH',
-            headers: {
-                apikey: supabaseKey,
-                Authorization: `Bearer ${supabaseKey}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(updatedData)
-        });
+        const response = await fetch(
+            `${supabaseUrl}/rest/v1/Metal?Metal=eq.${encodeURIComponent(metalName)}`,
+            {
+                method: 'PATCH',
+                headers: {
+                    apikey: supabaseKey,
+                    Authorization: `Bearer ${supabaseKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updatedData)
+            }
+        );
 
         if (response.ok) {
             statusText.textContent = 'Update saved.';
         } else {
-            alert("Update failed.");
+            const err = await response.json();
+            console.error(err);
+            alert("Update failed: " + err.message);
             loadTable();
         }
     }
 
     // ==============================
-    // 4. DELETE (Remove Row)
+    // 4. DELETE - Remove row
     // ==============================
-    async function deleteMetal(id) {
+    async function deleteMetal(metalName) {
         if (!confirm("Delete this metal record?")) return;
 
         statusText.textContent = 'Deleting...';
 
-        const response = await fetch(`${supabaseUrl}/rest/v1/Metal?id=eq.${id}`, {
-            method: 'DELETE',
-            headers: {
-                apikey: supabaseKey,
-                Authorization: `Bearer ${supabaseKey}`
+        const response = await fetch(
+            `${supabaseUrl}/rest/v1/Metal?Metal=eq.${encodeURIComponent(metalName)}`,
+            {
+                method: 'DELETE',
+                headers: {
+                    apikey: supabaseKey,
+                    Authorization: `Bearer ${supabaseKey}`
+                }
             }
-        });
+        );
 
         if (response.ok) {
             loadTable();
         } else {
-            alert("Delete failed.");
+            const err = await response.json();
+            console.error(err);
+            alert("Delete failed: " + err.message);
         }
     }
 
-    // Initial Load
+    // Initial load
     loadTable();
 
 </script>
+
 </body>
 </html>
