@@ -3,233 +3,317 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Page 3</title>
+
+<title>Business Orders</title>
 
 <style>
-body { font-family: Arial, sans-serif; background:#f4f6f8; text-align:center; }
+body { 
+    font-family: Arial, sans-serif; 
+    background:#f4f6f8; 
+    text-align:center; 
+    padding:20px;
+}
 
-button { padding:10px 15px; margin:6px; cursor:pointer; }
+button { 
+    padding:10px 15px; 
+    margin:6px; 
+    cursor:pointer; 
+    border:none;
+    border-radius:5px;
+    font-weight:bold;
+}
+
+.btn-return { background:#6c757d; color:white; }
+.btn-api { background:#007bff; color:white; }
+.btn-add { background:#28a745; color:white; }
+.btn-delete { background:#dc3545; color:white; }
+.btn-refresh { background:#17a2b8; color:white; }
+
+#status {
+    margin:10px;
+    color:#555;
+    font-style:italic;
+}
 
 table {
-border-collapse: collapse;
-width:90%;
-margin:auto;
-background:white;
+    border-collapse: collapse;
+    width:90%;
+    margin:20px auto;
+    background:white;
 }
 
 th {
-background:#e6e6e6;
-padding:10px;
-border:1px solid #ccc;
+    background:#e6e6e6;
+    padding:10px;
+    border:1px solid #ccc;
 }
 
 td {
-border:1px solid #ccc;
-padding:8px;
+    border:1px solid #ccc;
+    padding:8px;
 }
 
-td[contenteditable="true"] { background:#fffdf5; }
+td[contenteditable="true"] { 
+    background:#fffdf5; 
+    cursor:pointer;
+}
 
-tr.selected { background:#c8e6c9; }
+tr.selected { 
+    background:#c8e6c9; 
+}
 </style>
 </head>
 
 <body>
 
-<h1>Page 3 — Business Orders</h1>
+<h1>Business Orders</h1>
 
-<a href="blank.html"><button>Return</button></a>
+<p id="status">Waiting for connection...</p>
 
-<a href="PageT.html"><button>API</button></a>
+<a href="blank.html"><button class="btn-return">Return</button></a>
+<a href="PageT.html"><button class="btn-api">API</button></a>
 
 <br>
 
-<button onclick="addRow()">Add Row</button>
-<button onclick="deleteRow()">Delete Selected</button>
-<button onclick="downloadCSV()">Download CSV</button>
-<button onclick="resetData()">Reset</button>
+<button class="btn-add" onclick="addRow()">Add Row</button>
+<button class="btn-delete" onclick="deleteRow()">Delete Selected</button>
+<button class="btn-refresh" onclick="loadTable()">Refresh</button>
 
 <table id="businessTable">
 <thead>
 <tr>
-<th>Business</th>
-<th>Metal</th>
-<th>Price</th>
-<th>Quantity</th>
-<th>Thickness</th>
-<th>OrderID</th>
+    <th>Business</th>
+    <th>Metal</th>
+    <th>Price</th>
+    <th>Quantity</th>
+    <th>Thickness</th>
+    <th>OrderID</th>
 </tr>
 </thead>
-<tbody></tbody>
+
+<tbody id="tableBody"></tbody>
 </table>
 
 <script>
+/* ==============================
+   SUPABASE SETTINGS
+   ============================== */
 
-let data = [];
-let selectedIndex = null;
+const supabaseUrl = "https://dtlkoxesvryluntpkxst.supabase.co";
 
-/* -------- METAL API -------- */
-async function getMetalPrices(){
+// Paste your anon public key here
+const supabaseKey = "sb_publishable_oFej7rbKhkstLjb0Po5fHQ_oA7G-3u_";
 
-try{
+const statusText = document.getElementById("status");
 
-const res = await fetch("https://api.metals.live/v1/spot");
-const metals = await res.json();
+let selectedOrderID = null;
 
-console.log("API data:", metals);
+/* ==============================
+   READ - LOAD SUPABASE TABLE
+   ============================== */
 
+async function loadTable() {
+    statusText.textContent = "Loading data from Supabase...";
+
+    const response = await fetch(
+        `${supabaseUrl}/rest/v1/Businessorders?select=*&order=business.asc`,
+        {
+            method: "GET",
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
+                Accept: "application/json"
+            }
+        }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        console.error(data);
+        statusText.textContent = "Error: " + data.message;
+        return;
+    }
+
+    statusText.textContent = "Connected successfully.";
+
+    const tbody = document.getElementById("tableBody");
+    tbody.innerHTML = "";
+
+    data.forEach(row => {
+        const tr = document.createElement("tr");
+
+        tr.dataset.orderid = row.orderID;
+
+        tr.onclick = () => {
+            document.querySelectorAll("#businessTable tbody tr")
+                .forEach(r => r.classList.remove("selected"));
+
+            tr.classList.add("selected");
+            selectedOrderID = row.orderID;
+        };
+
+        tr.innerHTML = `
+            <td contenteditable="true" onblur="updateCell(this, 'business')">${row.business}</td>
+            <td contenteditable="true" onblur="updateCell(this, 'metal')">${row.metal}</td>
+            <td contenteditable="true" onblur="updateCell(this, 'price')">${row.price}</td>
+            <td contenteditable="true" onblur="updateCell(this, 'quantity')">${row.quantity}</td>
+            <td contenteditable="true" onblur="updateCell(this, 'thickness')">${row.thickness}</td>
+            <td>${row.orderID}</td>
+        `;
+
+        tbody.appendChild(tr);
+    });
 }
 
-catch(err){
-console.error("API error:",err);
+/* ==============================
+   CREATE - ADD ROW
+   ============================== */
+
+async function addRow() {
+    const business = prompt("Enter business number:");
+
+    if (!business) return;
+
+    const fakeOrderID = Date.now();
+
+    const newRow = {
+        business: parseInt(business),
+        metal: "aluminium",
+        price: 0,
+        quantity: "0x0",
+        thickness: 0,
+        orderID: fakeOrderID
+    };
+
+    console.log("Sending this to Supabase:", newRow);
+
+    statusText.textContent = "Adding row...";
+
+    const response = await fetch(
+        `${supabaseUrl}/rest/v1/Businessorders`,
+        {
+            method: "POST",
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
+                "Content-Type": "application/json",
+                Prefer: "return=representation"
+            },
+            body: JSON.stringify(newRow)
+        }
+    );
+
+    const result = await response.json();
+
+    if (response.ok) {
+        statusText.textContent = "Row added.";
+        loadTable();
+    } else {
+        console.error(result);
+        alert("Add failed: " + result.message);
+    }
 }
 
+/* ==============================
+   UPDATE - EDIT CELL
+   ============================== */
+
+async function updateCell(cell, columnName) {
+    const tr = cell.parentElement;
+    const orderID = tr.dataset.orderid;
+
+    let newValue = cell.textContent.trim();
+
+    if (columnName === "business" || columnName === "price") {
+        newValue = parseInt(newValue);
+
+        if (isNaN(newValue)) {
+            alert(columnName + " must be a whole number.");
+            loadTable();
+            return;
+        }
+    }
+
+    if (columnName === "thickness") {
+        newValue = parseFloat(newValue);
+
+        if (isNaN(newValue)) {
+            alert("Thickness must be a number.");
+            loadTable();
+            return;
+        }
+    }
+
+    const updatedData = {};
+    updatedData[columnName] = newValue;
+
+    statusText.textContent = "Updating...";
+
+    const response = await fetch(
+        `${supabaseUrl}/rest/v1/Businessorders?orderID=eq.${orderID}`,
+        {
+            method: "PATCH",
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(updatedData)
+        }
+    );
+
+    if (response.ok) {
+        statusText.textContent = "Update saved.";
+    } else {
+        const err = await response.json();
+        console.error(err);
+        alert("Update failed: " + err.message);
+        loadTable();
+    }
 }
 
-/* -------- LOAD CSV -------- */
-async function loadCSV(){
+/* ==============================
+   DELETE - DELETE SELECTED ROW
+   ============================== */
 
-const saved = localStorage.getItem("businessOrdersData");
+async function deleteRow() {
+    if (!selectedOrderID) {
+        alert("Select a row first.");
+        return;
+    }
 
-if(saved){
-data = JSON.parse(saved);
-renderTable();
-return;
+    if (!confirm("Delete this business order?")) return;
+
+    statusText.textContent = "Deleting...";
+
+    const response = await fetch(
+        `${supabaseUrl}/rest/v1/Businessorders?orderID=eq.${selectedOrderID}`,
+        {
+            method: "DELETE",
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`
+            }
+        }
+    );
+
+    if (response.ok) {
+        selectedOrderID = null;
+        statusText.textContent = "Row deleted.";
+        loadTable();
+    } else {
+        const err = await response.json();
+        console.error(err);
+        alert("Delete failed: " + err.message);
+    }
 }
 
-try{
+/* ==============================
+   START PAGE
+   ============================== */
 
-const response = await fetch("businessorders.csv");
-const text = await response.text();
-
-const rows = text.trim().split("\n").slice(1);
-
-data = rows.map(row => {
-
-const [business, metal, price, quantity, thickness, orderID] = row.split(",");
-
-return {business, metal, price, quantity, thickness, orderID};
-
-});
-
-saveLocal();
-renderTable();
-
-}
-
-catch(error){
-console.error("CSV load error:", error);
-}
-
-}
-
-/* -------- SAVE -------- */
-function saveLocal(){
-localStorage.setItem("businessOrdersData", JSON.stringify(data));
-}
-
-/* -------- RENDER TABLE -------- */
-function renderTable(){
-
-const tbody = document.querySelector("#businessTable tbody");
-tbody.innerHTML = "";
-
-data.forEach((row,index)=>{
-
-const tr = document.createElement("tr");
-
-tr.onclick = () => {
-document.querySelectorAll("tr").forEach(r=>r.classList.remove("selected"));
-tr.classList.add("selected");
-selectedIndex = index;
-};
-
-Object.keys(row).forEach(key => {
-
-const td = document.createElement("td");
-td.contentEditable = true;
-td.innerText = row[key];
-
-td.oninput = () => {
-data[index][key] = td.innerText;
-saveLocal();
-};
-
-tr.appendChild(td);
-
-});
-
-tbody.appendChild(tr);
-
-});
-
-}
-
-/* -------- ADD ROW -------- */
-function addRow(){
-
-data.push({
-business:"New",
-metal:"metal",
-price:"0",
-quantity:"0x0",
-thickness:"0",
-orderID:Date.now()
-});
-
-saveLocal();
-renderTable();
-
-}
-
-/* -------- DELETE -------- */
-function deleteRow(){
-
-if(selectedIndex === null){
-alert("Select a row first");
-return;
-}
-
-data.splice(selectedIndex,1);
-selectedIndex = null;
-
-saveLocal();
-renderTable();
-
-}
-
-/* -------- DOWNLOAD CSV -------- */
-function downloadCSV(){
-
-let csv = "business,metal,price,quantity,thickness,orderID\n";
-
-data.forEach(r => {
-
-csv += `${r.business},${r.metal},${r.price},${r.quantity},${r.thickness},${r.orderID}\n`;
-
-});
-
-const blob = new Blob([csv], {type:"text/csv"});
-const a = document.createElement("a");
-
-a.href = URL.createObjectURL(blob);
-a.download = "businessorders.csv";
-a.click();
-
-}
-
-/* -------- RESET -------- */
-function resetData(){
-
-localStorage.removeItem("businessOrdersData");
-location.reload();
-
-}
-
-/* -------- START PAGE -------- */
-
-loadCSV();
-getMetalPrices();
+loadTable();
 
 </script>
 
