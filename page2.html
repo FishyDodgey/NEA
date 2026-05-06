@@ -3,21 +3,41 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Page 2</title>
+
+<title>Customer Orders</title>
 
 <style>
-body { font-family: Arial, sans-serif; background:#f4f6f8; text-align:center; }
+body { 
+    font-family: Arial, sans-serif; 
+    background:#f4f6f8; 
+    text-align:center; 
+    padding:20px;
+}
 
 .button-row button {
     padding:10px 15px;
     margin:6px;
     cursor:pointer;
+    border:none;
+    border-radius:5px;
+    font-weight:bold;
+}
+
+.btn-return { background:#6c757d; color:white; }
+.btn-add { background:#28a745; color:white; }
+.btn-delete { background:#dc3545; color:white; }
+.btn-refresh { background:#007bff; color:white; }
+
+#status {
+    margin:10px;
+    font-style:italic;
+    color:#555;
 }
 
 table {
     border-collapse: collapse;
     width:90%;
-    margin:auto;
+    margin:20px auto;
     background:white;
 }
 
@@ -34,6 +54,7 @@ td {
 
 td[contenteditable="true"] {
     background:#fffdf5;
+    cursor:pointer;
 }
 
 tr.selected {
@@ -46,142 +67,236 @@ tr.selected {
 
 <h1>Customer Orders</h1>
 
+<p id="status">Waiting for connection...</p>
+
 <div class="button-row">
-    <a href="blank.html"><button>Return</button></a>
-    <button onclick="addRow()">Add Row</button>
-    <button onclick="deleteRow()">Delete Selected</button>
-    <button onclick="downloadCSV()">Download CSV</button>
-    <button onclick="resetData()">Reset</button>
+    <a href="blank.html"><button class="btn-return">Return</button></a>
+    <button class="btn-add" onclick="addRow()">Add Row</button>
+    <button class="btn-delete" onclick="deleteRow()">Delete Selected</button>
+    <button class="btn-refresh" onclick="loadTable()">Refresh</button>
 </div>
 
 <table id="ordersTable">
 <thead>
 <tr>
-<th>Customer</th>
-<th>Metal</th>
-<th>Price</th>
-<th>Quantity</th>
-<th>Thickness</th>
-<th>OrderID</th>
+    <th>Customer</th>
+    <th>Metal</th>
+    <th>Price</th>
+    <th>Quantity</th>
+    <th>Thickness</th>
 </tr>
 </thead>
-<tbody></tbody>
+<tbody id="tableBody"></tbody>
 </table>
 
 <script>
-let data = [];
-let selectedIndex = null;
+const supabaseUrl = "https://dtlkoxesvryluntpkxst.supabase.co";
 
-/* ---------- LOAD CSV ---------- */
-async function loadCSV() {
+// Paste your anon public key here
+const supabaseKey = "PASTE-YOUR-ANON-PUBLIC-KEY-HERE";
 
-    const saved = localStorage.getItem("ordersData");
-    if (saved) {
-        data = JSON.parse(saved);
-        renderTable();
+const statusText = document.getElementById("status");
+
+let selectedCustomer = null;
+
+// ==============================
+// READ - load table from Supabase
+// ==============================
+async function loadTable() {
+    statusText.textContent = "Loading data...";
+
+    const response = await fetch(
+        `${supabaseUrl}/rest/v1/Customerorders?select=*`,
+        {
+            method: "GET",
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
+                Accept: "application/json"
+            }
+        }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        console.error(data);
+        statusText.textContent = "Error: " + data.message;
         return;
     }
 
-    const res = await fetch("customersorders.csv");
-    const text = await res.text();
+    statusText.textContent = "Connected successfully.";
 
-    const rows = text.trim().split("\n").slice(1);
-
-    data = rows.map(r => {
-        const [customer, metal, price, quantity, thickness, orderID] = r.split(",");
-        return { customer, metal, price, quantity, thickness, orderID };
-    });
-
-    saveLocal();
-    renderTable();
-}
-
-/* ---------- SAVE ---------- */
-function saveLocal() {
-    localStorage.setItem("ordersData", JSON.stringify(data));
-}
-
-/* ---------- RENDER ---------- */
-function renderTable() {
-    const tbody = document.querySelector("#ordersTable tbody");
+    const tbody = document.getElementById("tableBody");
     tbody.innerHTML = "";
 
-    data.forEach((row, index) => {
+    data.forEach(row => {
         const tr = document.createElement("tr");
 
+        tr.dataset.customer = row.customer;
+
         tr.onclick = () => {
-            document.querySelectorAll("tr").forEach(r => r.classList.remove("selected"));
+            document.querySelectorAll("#ordersTable tbody tr")
+                .forEach(r => r.classList.remove("selected"));
+
             tr.classList.add("selected");
-            selectedIndex = index;
+            selectedCustomer = row.customer;
         };
 
-        Object.keys(row).forEach(key => {
-            const td = document.createElement("td");
-            td.contentEditable = true;
-            td.innerText = row[key];
-
-            td.oninput = () => {
-                data[index][key] = td.innerText;
-                saveLocal();
-            };
-
-            tr.appendChild(td);
-        });
+        tr.innerHTML = `
+            <td contenteditable="true" onblur="updateCell(this, 'customer')">${row.customer}</td>
+            <td contenteditable="true" onblur="updateCell(this, 'metal')">${row.metal}</td>
+            <td contenteditable="true" onblur="updateCell(this, 'price')">${row.price}</td>
+            <td contenteditable="true" onblur="updateCell(this, 'quantity')">${row.quantity}</td>
+            <td contenteditable="true" onblur="updateCell(this, 'thickness')">${row.thickness}</td>
+        `;
 
         tbody.appendChild(tr);
     });
 }
 
-/* ---------- ADD ---------- */
-function addRow() {
-    data.push({
-        customer:"New Customer",
-        metal:"metal",
-        price:"0",
-        quantity:"0x0",
-        thickness:"0",
-        orderID:Date.now()
-    });
+// ==============================
+// CREATE - add new row
+// ==============================
+async function addRow() {
+    const customer = prompt("Enter customer/order name:");
 
-    saveLocal();
-    renderTable();
+    if (!customer) return;
+
+    const newRow = {
+        customer: customer,
+        metal: "aluminium",
+        price: 0,
+        quantity: "0x0",
+        thickness: 0
+    };
+
+    statusText.textContent = "Adding row...";
+
+    const response = await fetch(
+        `${supabaseUrl}/rest/v1/Customerorders`,
+        {
+            method: "POST",
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
+                "Content-Type": "application/json",
+                Prefer: "return=representation"
+            },
+            body: JSON.stringify(newRow)
+        }
+    );
+
+    const result = await response.json();
+
+    if (response.ok) {
+        statusText.textContent = "Row added.";
+        loadTable();
+    } else {
+        console.error(result);
+        alert("Add failed: " + result.message);
+    }
 }
 
-/* ---------- DELETE ---------- */
-function deleteRow() {
-    if (selectedIndex === null) {
-        alert("Select a row first");
+// ==============================
+// UPDATE - update one edited cell
+// ==============================
+async function updateCell(cell, columnName) {
+    const tr = cell.parentElement;
+    const originalCustomer = tr.dataset.customer;
+    let newValue = cell.textContent.trim();
+
+    if (columnName === "price") {
+        newValue = parseInt(newValue);
+
+        if (isNaN(newValue)) {
+            alert("Price must be a whole number.");
+            loadTable();
+            return;
+        }
+    }
+
+    if (columnName === "thickness") {
+        newValue = parseFloat(newValue);
+
+        if (isNaN(newValue)) {
+            alert("Thickness must be a number.");
+            loadTable();
+            return;
+        }
+    }
+
+    const updatedData = {};
+    updatedData[columnName] = newValue;
+
+    statusText.textContent = "Updating...";
+
+    const response = await fetch(
+        `${supabaseUrl}/rest/v1/Customerorders?customer=eq.${encodeURIComponent(originalCustomer)}`,
+        {
+            method: "PATCH",
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(updatedData)
+        }
+    );
+
+    if (response.ok) {
+        statusText.textContent = "Update saved.";
+
+        if (columnName === "customer") {
+            tr.dataset.customer = newValue;
+            selectedCustomer = newValue;
+        }
+
+    } else {
+        const err = await response.json();
+        console.error(err);
+        alert("Update failed: " + err.message);
+        loadTable();
+    }
+}
+
+// ==============================
+// DELETE - delete selected row
+// ==============================
+async function deleteRow() {
+    if (!selectedCustomer) {
+        alert("Select a row first.");
         return;
     }
 
-    data.splice(selectedIndex,1);
-    selectedIndex = null;
-    saveLocal();
-    renderTable();
+    if (!confirm("Delete this customer order?")) return;
+
+    statusText.textContent = "Deleting...";
+
+    const response = await fetch(
+        `${supabaseUrl}/rest/v1/Customerorders?customer=eq.${encodeURIComponent(selectedCustomer)}`,
+        {
+            method: "DELETE",
+            headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`
+            }
+        }
+    );
+
+    if (response.ok) {
+        selectedCustomer = null;
+        statusText.textContent = "Row deleted.";
+        loadTable();
+    } else {
+        const err = await response.json();
+        console.error(err);
+        alert("Delete failed: " + err.message);
+    }
 }
 
-/* ---------- DOWNLOAD CSV ---------- */
-function downloadCSV() {
-    let csv = "customer,metal,price,quantity,thickness,orderID\n";
-
-    data.forEach(r => {
-        csv += `${r.customer},${r.metal},${r.price},${r.quantity},${r.thickness},${r.orderID}\n`;
-    });
-
-    const blob = new Blob([csv], {type:"text/csv"});
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "customersorders.csv";
-    a.click();
-}
-
-/* ---------- RESET ---------- */
-function resetData() {
-    localStorage.removeItem("ordersData");
-    location.reload();
-}
-
-loadCSV();
+// Initial load
+loadTable();
 </script>
 
 </body>
