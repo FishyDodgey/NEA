@@ -179,7 +179,7 @@ async function addRow() {
 
     const newRow = {
         business: parseInt(business),
-        metal: "aluminium",
+      metal: prompt("Enter metal name:") || "aluminium",
         price: 0,
         quantity: "0x0",
         thickness: 0,
